@@ -4,10 +4,11 @@ import org.apache.commons.cli.*;
 
 import java.io.BufferedInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
 
 /**
  * Для того, чтобы ограничить скорость скачивания, нужно проверять сколько байтов загрузиться за 1 секунду.
@@ -18,55 +19,72 @@ import java.util.List;
 
 public class Wget {
 
+    private int speedLimit;
+    private String url;
     private String outFile;
-    private long downloaded;
-    private long totalLoaded;
-    private Thread download;
-    private boolean complete;
+    private Callable<String> load;
     private final static String LN = System.lineSeparator();
 
     Wget(String url, int speedLimit) {
-        this.complete = false;
-        String[] tmp = url.split("/");
-        this.outFile = tmp[tmp.length - 1];
-        download = new Thread(() -> {
-            try (BufferedInputStream in = new BufferedInputStream(new URL(url).openStream());
+        this.url = url;
+        setOutFile(url);
+        this.speedLimit = speedLimit;
+        initCallable();
+    }
+
+    private void initCallable() {
+        this.load = () -> {
+            long downloaded = 0;
+            long totalLoaded = 0;
+            long timePassed = 0;
+            try (BufferedInputStream in = new BufferedInputStream(new URL(this.url).openStream());
                  FileOutputStream fileOutputStream = new FileOutputStream(outFile)) {
                 byte[] dataBuffer = new byte[1024];
                 int bytesRead;
                 long startTime = System.currentTimeMillis();
-                long loadLimit = speedLimit * 1000;
+                long loadLimit = this.speedLimit * 1000;
                 float speed;
                 System.out.println("Out file name: " + outFile + LN);
                 while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
-                    this.downloaded = this.downloaded + bytesRead;
+                    downloaded = downloaded + bytesRead;
                     fileOutputStream.write(dataBuffer, 0, bytesRead);
-                    if (this.downloaded >= loadLimit) {
+                    if (downloaded >= loadLimit) {
                         Thread.sleep(1000);
+                        timePassed += (System.currentTimeMillis() - startTime);
                         speed = downloaded / (System.currentTimeMillis() - startTime);
                         startTime = System.currentTimeMillis();
-                        this.totalLoaded += this.downloaded;
-                        System.out.println("Speed: " + speed + "kB/s ## laded:" + this.totalLoaded + "bytes");
-                        this.downloaded = 0;
+                        totalLoaded += downloaded;
+                        System.out.println("Speed: " + speed + "kB/s ## laded:" + totalLoaded + " bytes");
+                        downloaded = 0;
                     }
                 }
-                this.complete = true;
-                System.out.println("total loaded: " + this.totalLoaded + " bytes");
-
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
+                if (downloaded!=0){
+                    totalLoaded+=downloaded;
+                    timePassed += (System.currentTimeMillis() - startTime);
+                }
             }
-        });
+            return String.format("Loaded: %.2f kB in %.2f seconds", totalLoaded/1000.0, timePassed/1000.0);
+//                    new String[][] {String.format(totalLoaded/1000),String.format(" %.3f", timePassed/1000.0) };
+        };
+    }
+
+    private void setOutFile(String url) {
+        String[] tmp = url.split("/");
+        this.outFile = tmp[tmp.length - 1];
     }
 
     void begin() {
-        this.download.start();
-        while (!this.complete) {
-            try {
-                this.download.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        FutureTask<String> futureTask = new FutureTask<>(load);
+        Thread download = new Thread(futureTask);
+        download.start();
+        try {
+            String result = futureTask.get();
+            while (result == null) {
+                result = futureTask.get();
             }
+            System.out.println(result);
+        } catch (Exception e) {
+            System.out.println("Wrong url to download");
         }
     }
 
@@ -75,7 +93,6 @@ public class Wget {
         ArgsParser param = new ArgsParser(args);
         if (!param.isFailed()) {
             Wget wget = new Wget(param.getUrl(), param.getSpeedLimit());
-            wget.download.start();
             wget.begin();
         }
 
