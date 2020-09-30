@@ -17,55 +17,17 @@ import java.util.concurrent.FutureTask;
  * Пример кода для скачивания файла с задержкой в одну секунду.
  */
 
-public class Wget {
+public class Wget implements Callable<String>{
 
     private int speedLimit;
     private String url;
     private String outFile;
-    private Callable<String> load;
     private final static String LN = System.lineSeparator();
 
     Wget(String url, int speedLimit) {
         this.url = url;
         setOutFile(url);
         this.speedLimit = speedLimit;
-        initCallable();
-    }
-
-    private void initCallable() {
-        this.load = () -> {
-            long downloaded = 0;
-            long totalLoaded = 0;
-            long timePassed = 0;
-            try (BufferedInputStream in = new BufferedInputStream(new URL(this.url).openStream());
-                 FileOutputStream fileOutputStream = new FileOutputStream(outFile)) {
-                byte[] dataBuffer = new byte[1024];
-                int bytesRead;
-                long startTime = System.currentTimeMillis();
-                long loadLimit = this.speedLimit * 1000;
-                float speed;
-                System.out.println("Out file name: " + outFile + LN);
-                while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
-                    downloaded = downloaded + bytesRead;
-                    fileOutputStream.write(dataBuffer, 0, bytesRead);
-                    if (downloaded >= loadLimit) {
-                        Thread.sleep(1000);
-                        timePassed += (System.currentTimeMillis() - startTime);
-                        speed = downloaded / (System.currentTimeMillis() - startTime);
-                        startTime = System.currentTimeMillis();
-                        totalLoaded += downloaded;
-                        System.out.println("Speed: " + speed + "kB/s ## laded:" + totalLoaded + " bytes");
-                        downloaded = 0;
-                    }
-                }
-                if (downloaded!=0){
-                    totalLoaded+=downloaded;
-                    timePassed += (System.currentTimeMillis() - startTime);
-                }
-            }
-            return String.format("Loaded: %.2f kB in %.2f seconds", totalLoaded/1000.0, timePassed/1000.0);
-//                    new String[][] {String.format(totalLoaded/1000),String.format(" %.3f", timePassed/1000.0) };
-        };
     }
 
     private void setOutFile(String url) {
@@ -74,7 +36,7 @@ public class Wget {
     }
 
     void begin() {
-        FutureTask<String> futureTask = new FutureTask<>(load);
+        FutureTask<String> futureTask = new FutureTask<>(this);
         Thread download = new Thread(futureTask);
         download.start();
         try {
@@ -96,6 +58,40 @@ public class Wget {
             wget.begin();
         }
 
+    }
+
+    @Override
+    public String call() throws Exception {
+        long downloaded = 0;
+        long totalLoaded = 0;
+        long timePassed = 0;
+        try (BufferedInputStream in = new BufferedInputStream(new URL(this.url).openStream());
+             FileOutputStream fileOutputStream = new FileOutputStream(outFile)) {
+            byte[] dataBuffer = new byte[1024];
+            int bytesRead;
+            long startTime = System.currentTimeMillis();
+            long loadLimit = this.speedLimit * 1000;
+            float speed;
+            System.out.println("Out file name: " + outFile + LN);
+            while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
+                downloaded = downloaded + bytesRead;
+                fileOutputStream.write(dataBuffer, 0, bytesRead);
+                if (downloaded >= loadLimit) {
+                    Thread.sleep(1000);
+                    timePassed += (System.currentTimeMillis() - startTime);
+                    speed = downloaded / (System.currentTimeMillis() - startTime);
+                    startTime = System.currentTimeMillis();
+                    totalLoaded += downloaded;
+                    System.out.println("Speed: " + speed + "kB/s ## laded:" + totalLoaded + " bytes");
+                    downloaded = 0;
+                }
+            }
+            if (downloaded!=0){
+                totalLoaded+=downloaded;
+                timePassed += (System.currentTimeMillis() - startTime);
+            }
+        }
+        return String.format("Loaded: %.2f kB in %.2f seconds", totalLoaded/1000.0, timePassed/1000.0);
     }
 }
 
