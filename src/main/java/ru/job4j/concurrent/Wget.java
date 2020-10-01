@@ -17,7 +17,7 @@ import java.util.concurrent.FutureTask;
  * Пример кода для скачивания файла с задержкой в одну секунду.
  */
 
-public class Wget implements Callable<String>{
+public class Wget implements Callable<Void>{
 
     private int speedLimit;
     private String url;
@@ -35,23 +35,14 @@ public class Wget implements Callable<String>{
         this.outFile = tmp[tmp.length - 1];
     }
 
-    void begin() {
-        FutureTask<String> futureTask = new FutureTask<>(this);
-        Thread download = new Thread(futureTask);
-        download.start();
-        try {
-            String result = futureTask.get();
-            while (result == null) {
-                result = futureTask.get();
-            }
-            System.out.println(result);
-        } catch (Exception e) {
-            System.out.println("Wrong url to download");
-        }
+    void begin() throws InterruptedException {
+        Thread t = new Thread(new FutureTask<>(this));
+        t.start();
+        t.join();
     }
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         ArgsParser param = new ArgsParser(args);
         if (!param.isFailed()) {
             Wget wget = new Wget(param.getUrl(), param.getSpeedLimit());
@@ -61,7 +52,8 @@ public class Wget implements Callable<String>{
     }
 
     @Override
-    public String call() throws Exception {
+    public Void call(){
+        String out = null;
         long downloaded = 0;
         long totalLoaded = 0;
         long timePassed = 0;
@@ -90,8 +82,12 @@ public class Wget implements Callable<String>{
                 totalLoaded+=downloaded;
                 timePassed += (System.currentTimeMillis() - startTime);
             }
+             out = String.format("Loaded: %.2f kB in %.2f seconds", totalLoaded/1000.0, timePassed/1000.0);
+        }catch (Exception e) {
+            out = ("Wrong url to download");
         }
-        return String.format("Loaded: %.2f kB in %.2f seconds", totalLoaded/1000.0, timePassed/1000.0);
+        System.out.println(out);
+        return null;
     }
 }
 

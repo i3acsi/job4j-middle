@@ -16,7 +16,7 @@ import java.nio.file.StandardOpenOption;
 public class WgetTest {
 
     @Test
-    public void fileLoaded() throws IOException {
+    public void fileLoaded() throws IOException, InterruptedException {
         String url = "https://decoretto.ru/upload/iblock/149/1492d399120c1acf866bb25749663d1e.jpg";
         String outFile = "1492d399120c1acf866bb25749663d1e.jpg";
         String expectedFile = "src/main/resources/test.jpg";
@@ -37,7 +37,7 @@ public class WgetTest {
     }
 
     @Test
-    public void fileNotLoaded() {
+    public void fileNotLoaded() throws InterruptedException {
         PrintStream stdout = System.out;
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         System.setOut(new PrintStream(out));
