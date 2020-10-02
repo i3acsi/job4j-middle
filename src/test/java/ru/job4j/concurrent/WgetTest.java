@@ -21,7 +21,7 @@ public class WgetTest {
         String outFile = "1492d399120c1acf866bb25749663d1e.jpg";
         String expectedFile = "src/main/resources/test.jpg";
         Wget wget = new Wget(url, 100);
-        wget.begin();
+        wget.call();
         FileChannel resultChannel = FileChannel.open(Path.of(outFile), StandardOpenOption.READ);
         FileChannel expectedChannel = FileChannel.open(Path.of(expectedFile), StandardOpenOption.READ);
         ByteBuffer resultBuf = ByteBuffer.allocate(1024);
@@ -43,7 +43,7 @@ public class WgetTest {
         System.setOut(new PrintStream(out));
         String url = "error.jpg";
         Wget wget = new Wget(url, 100);
-        wget.begin();
+        wget.call();
         assertThat(out.toString(),
                 is(
                         "Wrong url to download\r\n"
