@@ -4,12 +4,12 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Predicate;
 
 public class ParseFile {
     private static ConcurrentMap<File, ParseFile> files = new ConcurrentHashMap<>();
@@ -24,31 +24,14 @@ public class ParseFile {
     }
 
     public String getContent() {
-        if (this.file.exists()) {
-            synchronized (this) {
-                StringBuilder result = new StringBuilder();
-                try (FileChannel channel = FileChannel.open(this.file.toPath(), StandardOpenOption.READ)) {
-                    int bufferSize = 1024;
-                    if (bufferSize > channel.size()) {
-                        bufferSize = (int) channel.size();
-                    }
-                    ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
-                    while (channel.read(buffer) > 0) {
-                        buffer.limit(buffer.position());
-                        buffer.rewind();
-                        result.append(StandardCharsets.UTF_8.decode(buffer).toString());
-                        buffer.clear();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                return result.toString();
-            }
-        }
-        return null;
+        return getContentWithPredicate((x) -> true);
     }
 
     public String getContentWithoutUnicode() {
+        return getContentWithPredicate((x) -> x == 13 || x == 10 || x > 90);
+    }
+
+    private String getContentWithPredicate(Predicate<Integer> predicate) {
         if (this.file.exists()) {
             synchronized (this) {
                 int data = 0;
@@ -65,7 +48,7 @@ public class ParseFile {
                         buffer.rewind();
                         for (int i = 0; i < limit; i++) {
                             data = buffer.get();
-                            if (data == 13 || data == 10 || data > 90) { //if (data == 13 || data == 10 || data > 90)
+                            if (predicate.test(data)) {
                                 result.append((char) data);
                             }
                         }
