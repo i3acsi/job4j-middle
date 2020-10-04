@@ -7,10 +7,10 @@ import java.net.URL;
 import java.util.concurrent.Callable;
 
 public class Wget implements Callable<File> {
-    private int loadLimit;
-    private String url;
+    private final int loadLimit;
+    private final String url;
 
-    Wget(String url, int speedLimit) {
+    Wget(final String url, final int speedLimit) {
         this.loadLimit = speedLimit * 1000;
         this.url = url;
     }
@@ -24,7 +24,7 @@ public class Wget implements Callable<File> {
             byte[] dataBuffer = new byte[1024];
             int bytesRead;
             while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
-                downloaded = downloaded + bytesRead;
+                downloaded += bytesRead;
                 fileOutputStream.write(dataBuffer, 0, bytesRead);
                 if (downloaded >= loadLimit) {
                     Thread.sleep(1000);
