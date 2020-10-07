@@ -9,8 +9,7 @@ import java.util.stream.Stream;
 
 @ThreadSafe
 public class UserStorage {
-
-    private static UserStorage impl;
+    private static volatile UserStorage impl;
     private static ConcurrentMap<Integer, User> users;
 
     public static UserStorage instance() {
@@ -30,69 +29,58 @@ public class UserStorage {
 
 
     public boolean addUser(User user) {
-        synchronized (user) {
-            boolean[] result = new boolean[1];
-            users.computeIfAbsent(user.getId(), k -> {
-                result[0] = true;
-                return User.of(user);
-            });
-            return result[0];
+        synchronized (user) { // м.б. в качестве монитора использовать Integer.valueOf(user.getId()) ?? вместо user
+            return (users.putIfAbsent(user.getId(),
+                    new User(user.getId(), user.getAmount()))) == null;
         }
     }
 
     public boolean update(User user) {
-        boolean[] result = new boolean[1];
-        if (users.get(user.getId()) != null) {
-            synchronized (users.get(user.getId())) {
-                users.computeIfPresent(user.getId(), (k, v) -> {
-                    result[0] = true;
-                    v.setAmount(user.getAmount());
-                    return v;
-                });
-            }
+        User tmp;
+        synchronized ((tmp = users.get(user.getId())) != null ? tmp : user) { // Integer.valueOf(user.getId()) или
+            return users.replace(user.getId(),
+                    new User(user.getId(), user.getAmount())) != null;
         }
-        return result[0];
     }
 
     public boolean delete(User user) {
-        boolean result = false;
-        if (users.get(user.getId()) != null)
-            synchronized (users.get(user.getId())) {
-                result = users.remove(user.getId()) != null;
-            }
-        return result;
+        User tmp;
+        synchronized ((tmp = users.get(user.getId())) != null ? tmp : user) {
+            return users.remove(user.getId()) != null;
+        }
     }
 
     public User getById(int id) {
-        return User.of(users.get(id));
+        User tmp;
+        synchronized ((tmp = users.get(id)) != null ? tmp : new Object()) {
+            if (tmp != null) {
+                return new User(id, tmp.getAmount());
+            } else {
+                return null;
+            }
+        }
     }
 
     public boolean transfer(int fromId, int toId, int amount) {
         User from = users.get(fromId);
         User to = users.get(toId);
         boolean result = false;
-        if (from != null && to != null) {
-            synchronized (users.get(fromId)) {
-                from = users.get(fromId);
-                if (from != null && from.getAmount() >= amount) {
-                    from.setAmount(from.getAmount() - amount);
-                    result = true;
+        if (from != null && to != null && from.getAmount() >= amount) {
+            synchronized ((from = users.get(fromId)) != null ? from : new Object()) {
+                synchronized ((to = users.get(toId)) != null ? to : new Object()) {
+                    if (from != null && to != null && from.getAmount() >= amount) {
+                        from.setAmount(from.getAmount() - amount);
+                        to.setAmount(to.getAmount() + amount);
+                        result = true;
+                    }
                 }
             }
-            synchronized (users.get(toId)) {
-                to = users.get(toId);
-                if (to != null && result) {
-                    to.setAmount(to.getAmount() + amount);
-                }
-            }
-
         }
         return result;
     }
 
-    public static void clear() {
+    public void clear() {
         users.clear();
-        User.clear();
     }
 
     public Stream<User> findAll() {

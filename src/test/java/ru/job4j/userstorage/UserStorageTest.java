@@ -1,84 +1,78 @@
 package ru.job4j.userstorage;
 
 
-import org.junit.After;
 import org.junit.Test;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.*;
 
 public class UserStorageTest {
+    private static final AtomicInteger index = new AtomicInteger(0);
     private static UserStorage userStorage;
+    private static User user999;
+
     static {
         userStorage = UserStorage.instance();
+        initUsers();
     }
 
-    @After
-    public void clear(){
-        UserStorage.clear();
+    private static void initUsers() {
+        for (int i = 0; i < 1000; i++) {
+            User u = new User(index.getAndIncrement(), 0);
+            assertTrue(userStorage.addUser(u));
+            if (u.getId() == 999) {
+                user999 = u;
+            }
+        }
     }
 
     @Test
-    public void addUserTest() throws InterruptedException {
-        User[] tmp = new User[1];
-        Thread[] threads = new Thread[1000];
-        for (int i = 0; i < threads.length; i++) {
-            threads[i] = new Thread(() -> {
-                User u = new User();
-                if (u.getId() == 999) {
-                    tmp[0] = u;
-                }
-                userStorage.addUser(u);
-            });
-            threads[i].start();
-        }
-        for (Thread t : threads) {
-            t.join();
-        }
+    public void addUserTest() {
         assertNotNull(userStorage.getById(999));
         assertNull(userStorage.getById(1000));
-        assertThat(userStorage.getById(999), is(tmp[0]));
+        assertThat(userStorage.getById(999), is(user999));
+        assertFalse(userStorage.addUser(new User(1, 500)));
+        assertThat(userStorage.getById(1).getAmount(), is(0));
+        assertTrue(userStorage.addUser(new User(1000, 0)));
+        assertNotNull(userStorage.getById(1000));
+
     }
 
     @Test
-    public void updateUserTest() throws InterruptedException {
-        User[] tmp = new User[1];
-        Thread[] threads = new Thread[1000];
-        for (int i = 0; i < threads.length; i++) {
-            threads[i] = new Thread(() -> {
-                User u = new User();
-                if (u.getId() == 999) {
-                    tmp[0] = u;
-                }
-                userStorage.addUser(u);
-            });
-
-        }
-        for (Thread t : threads) {
-            t.start();
-            t.join();
-        }
-        tmp[0].setAmount(100);
+    public void updateUserTest() {
+        user999.setAmount(100);
         assertThat(userStorage.getById(999).getAmount(), is(0));
-        assertTrue(userStorage.update(tmp[0]));
+        assertTrue(userStorage.update(user999));
         assertThat(userStorage.getById(999).getAmount(), is(100));
+        assertFalse(userStorage.update(new User(20000, 99)));
     }
 
     @Test
     public void deleteUserTest() {
-        User u1 = new User();
-        assertThat((int) userStorage.findAll().count(), is(0));
+        int i = index.incrementAndGet();
+        User u1 = new User(i, 0);
+        int before = (int) userStorage.findAll().count();
         assertTrue(userStorage.addUser(u1));
-        assertThat((int) userStorage.findAll().count(), is(1));
-        assertEquals(u1, userStorage.getById(0));
+        int after = (int) userStorage.findAll().count();
+        assertThat(after - before, is(1));
+        assertEquals(u1, userStorage.getById(i));
         assertTrue(userStorage.delete(u1));
-        assertThat((int) userStorage.findAll().count(), is(0));
+        before = after;
+        after = (int) userStorage.findAll().count();
+        assertThat(after - before, is(-1));
+        assertFalse(userStorage.delete(new User(20000, 99)));
+
+
     }
 
     @Test
     public void transferToTest() {
-        User u1 = new User();
-        User u2 = new User();
+        userStorage.clear();
+        index.set(0);
+        User u1 = new User(0,0);
+        User u2 = new User(1, 0);
         userStorage.addUser(u1);
         userStorage.addUser(u2);
         assertFalse(userStorage.transfer(0, 1, 100));
@@ -89,5 +83,9 @@ public class UserStorageTest {
         assertThat(userStorage.getById(1).getAmount(), is(100));
         assertThat(u1.getAmount(), is(500));
         assertThat(u2.getAmount(), is(0));
+        assertFalse(userStorage.transfer(20,30, 100));
+
+        userStorage.clear();
+        initUsers();
     }
 }
