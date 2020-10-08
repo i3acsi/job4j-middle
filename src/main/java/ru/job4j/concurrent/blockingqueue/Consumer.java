@@ -2,8 +2,12 @@ package ru.job4j.concurrent.blockingqueue;
 
 import java.util.function.Supplier;
 
-/*
-Consumer извлекает данные из очереди.
+/**
+ * Consumer retrieves data from the queue,
+ * There is a simple thread inside it.
+ * And the thread's "run" method just calls the queue's "poll" method.
+ *
+ * @param <T>  the type of elements held in this queue
  */
 public class Consumer<T> implements Supplier<T> {
     private final SimpleBlockingQueue<T> queue;
