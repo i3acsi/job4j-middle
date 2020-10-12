@@ -2,11 +2,10 @@ package ru.job4j.pool;
 
 import org.junit.Test;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
 
 public class ThreadPoolTest {
     @Test
@@ -19,18 +18,13 @@ public class ThreadPoolTest {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
-
+                e.printStackTrace();
             }
             System.out.println("task completed:" + Thread.currentThread().getName());
             isRunning.decrementAndGet();
         };
         for (int i = 0; i < 30; i++) {
             threadPool.work(run1);
-        }
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-
         }
         threadPool.shutdown();
         assertThat(isRunning.get(), is(0));
@@ -44,13 +38,7 @@ public class ThreadPoolTest {
         for (int i = 0; i < 100; i++) {
             threadPool.work(runnable);
         }
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-
-        }
         threadPool.shutdown();
         assertThat(num.get(), is(100));
     }
-
 }

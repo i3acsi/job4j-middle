@@ -97,6 +97,12 @@ public class SimpleBlockingQueue<T> {
             return result;
         }
     }
+
+    public int size(){
+        synchronized (monitor){
+            return queue.size();
+        }
+    }
 }
 
 
