@@ -13,7 +13,7 @@ public class ParallelIndexSearch<T> extends RecursiveTask<Set<Integer>> {
     private final T object;
     private final Set<Integer> indexes;
 
-    public ParallelIndexSearch(T[] array, T object) {
+    private ParallelIndexSearch(T[] array, T object) {
         this.array = array;
         this.from = 0;
         this.to = array.length - 1;

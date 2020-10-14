@@ -9,7 +9,7 @@ public class PSearch<T> extends RecursiveTask<Integer> {
     private final int from, to;
     private final T object;
 
-    public PSearch(T[] array, T object) {
+    private PSearch(T[] array, T object) {
         this.array = array;
         this.from = 0;
         this.to = array.length - 1;
