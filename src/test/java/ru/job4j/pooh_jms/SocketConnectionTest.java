@@ -2,8 +2,6 @@ package ru.job4j.pooh_jms;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.List;
@@ -14,7 +12,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static ru.job4j.pooh_jms.PoohJMS.addTab;
+import static ru.job4j.pooh_jms.MyLogger.log;
+import static ru.job4j.pooh_jms.MyLogger.warn;
 
 
 public class SocketConnectionTest {
@@ -23,7 +22,6 @@ public class SocketConnectionTest {
     private int port = 3345;
     private Iterator<String> citiesIterator;
     private Iterator<String> temperaturesIterator;
-    private static final Logger log = LoggerFactory.getLogger(PoohJMS.class);
     private List<String> cities = new CopyOnWriteArrayList<>();
 
     {
@@ -69,7 +67,7 @@ public class SocketConnectionTest {
             int counter = 10;
             while (counter > 0) {
                 try (SocketConnection socketConnection = new SocketConnection(url, port)) {
-                    log.info("Connected to " + url);
+                    log("Connected to " + url);
                     String httpRequest = modePost ?
                             (modeQueue ? HttpProcessor.postQueueRequest(queueOrTopic, text, url)
                                     : HttpProcessor.postTopicRequest(queueOrTopic, text, url)) :
@@ -77,13 +75,13 @@ public class SocketConnectionTest {
                                     : HttpProcessor.getTopicRequest(queueOrTopic, url));
                     socketConnection.writeLine(httpRequest);
                     String httpResponse = socketConnection.readBlock();
-                    log.info("<<<<<<<<<<<!!" + Thread.currentThread().getName() + "\r\nHTTP REQUEST:\r\n" + httpRequest + addTab("HTTP RESPONSE:\r\n" + httpResponse + "!!>>>>>>>>>"));
+                    log(httpRequest, httpResponse);
                     String[] response = HttpProcessor.parseJson(httpResponse);
                     Assert.assertEquals(queueOrTopic, response[0]);
                     Assert.assertTrue(assertion.test(response[1]) || response[1].equals("no data"));
                     counter = -1;
                 } catch (Exception e) {
-                    log.warn("server is busy: " + Thread.currentThread().getName());
+                    warn("server is busy: " + Thread.currentThread().getName());
                     counter--;
                     try {
                         Thread.sleep(500);

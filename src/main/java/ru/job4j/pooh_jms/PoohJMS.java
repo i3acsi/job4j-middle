@@ -1,8 +1,5 @@
 package ru.job4j.pooh_jms;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Deque;
@@ -13,18 +10,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static ru.job4j.pooh_jms.HttpProcessor.*;
+import static ru.job4j.pooh_jms.MyLogger.log;
 
 public class PoohJMS {
     private final ExecutorService executorService = Executors.newCachedThreadPool();
     private final int port = 3345;
     private final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
-    private final Map<String, Deque<String>> topics = new ConcurrentHashMap<>();
-    private final Map<String, SocketConnection> connectionMap = new ConcurrentHashMap<>();
-    private static final Logger log = LoggerFactory.getLogger(PoohJMS.class);
-    private static final String TAB = "\t\t\t\t\t\t\t\t\t";
-    private static final String LN = System.lineSeparator();
-
-
+    private final Map<String,Topic> topics = new ConcurrentHashMap<>();
     {
         Thread serverProcessor = new Thread(this::run);
         serverProcessor.setDaemon(true);
@@ -56,33 +48,13 @@ public class PoohJMS {
 
     private void run() {
         try (ServerSocket server = new ServerSocket(port)) {
-            log.info("server started");
+            log("server started");
             while (!Thread.currentThread().isInterrupted()) {
                 SocketConnection connection = new SocketConnection(server);
                 Runnable task = () -> {
                     String httpRequest = connection.readBlock();
-                    log.info("client connected: " + connection.getAdders());
-                    String httpResponse = "";
-                    if (isPostRequest(httpRequest)) {            // POST
-                        if (isTopic(httpRequest)) {             //POST /topic
-                            httpResponse = getHttpResponseOnPostTopic(httpRequest, queues, connection.getAdders());
-                        } else {                                 //POST /queue
-                            httpResponse = getHttpResponseOnPostQueue(httpRequest, queues, connection.getAdders());
-                        }
-                    } else {
-                        if (isTopic(httpRequest)) {             //GET /topic
-
-                        } else {                                 //GET /queue
-                            httpResponse = getHttpResponseOnGetQueue(httpRequest, queues, connection.getAdders());
-                        }
-                    }
-                    log.info("HTTP REQUEST:\r\n" + httpRequest + addTab("RESPONSE:\r\n" + httpResponse) + LN + LN + LN);
-                    connection.writeLine(httpResponse);
-                    try {
-                        connection.close();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    log("client connected: " + connection.getAdders());
+                    processHttpRequest(httpRequest, connection);
                 };
                 executorService.submit(task);
             }
@@ -91,9 +63,19 @@ public class PoohJMS {
         }
     }
 
-    static String addTab(String string) {
-        return string.lines().reduce("", (x, y) -> TAB + x + LN + TAB + y);
+    private void processHttpRequest(String httpRequest, SocketConnection connection) {
+        if (isPostRequest(httpRequest)) {            // POST
+            if (isTopic(httpRequest)) {             //POST /topic
+                processPostTopic(httpRequest, topics, connection);
+            } else {                                 //POST /queue
+                processPostQueue(httpRequest, queues, connection);
+            }
+        } else {
+            if (isTopic(httpRequest)) {             //GET /topic
+                processGetTopic(httpRequest, topics, connection);
+            } else {                                 //GET /queue
+                processGetQueue(httpRequest, queues, connection);
+            }
+        }
     }
-
-
 }

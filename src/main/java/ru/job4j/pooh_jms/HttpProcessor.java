@@ -4,17 +4,14 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 class HttpProcessor {
     private static final String LN = System.lineSeparator();
     private static final Object LOCK = new Object();
-    //    private static final Queue<SocketConnection> connections = new ConcurrentLinkedQueue<>();
-    private static final Map<String, Set<SocketConnection>> topicConnections = new ConcurrentHashMap<>();
 
 
     static String postQueueRequest(String queue, String text, String hostUrl) {
@@ -97,95 +94,66 @@ class HttpProcessor {
         return result;
     }
 
-    static String getHttpResponseOnPostQueue(String httpRequest, Map<String, Deque<String>> queues, String address) {
+    static void processPostQueue(String httpRequest, Map<String, Deque<String>> queues, SocketConnection connection) {
         String[] args = HttpProcessor.parseJson(httpRequest);
         queues.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
         queues.get(args[0]).offer(args[1]); // push to tail
-        return postQueueRequest(args[0], args[1], address);
-    }
-
-    static String getHttpResponseOnPostTopic(String httpRequest, Map<String, Deque<String>> topics, String address) {
-        String[] args = HttpProcessor.parseJson(httpRequest);
-        topics.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
-        topics.get(args[0]).offer(args[1]); // push to tail
-//        connection.notify();
-        return postTopicRequest(args[0], args[1], address);
-    }
-
-    static String getHttpResponseOnGetQueue(String httpRequest, Map<String, Deque<String>> queues, String address) {
-        String[] args = HttpProcessor.parseJson(httpRequest);
-        String response = queues.getOrDefault(args[0], emptyList()).poll();// remove from head
-        if (response == null) {
-            response = "no data";
+        String response = postQueueRequest(args[0], args[1], connection.getAdders());
+        MyLogger.log(httpRequest, response);
+        connection.writeLine(response);
+        try {
+            connection.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return postQueueRequest(args[0], response, address);
     }
 
-//    static String getHttpResponse(String httpRequest, SocketConnection connection, Map<String, Deque<String>> queues, Map<String, Deque<String>> topics, Map<String, SocketConnection> connectionMap) {
-//        String[] args = HttpProcessor.parseJson(httpRequest);
-//        if (isPostRequest(httpRequest)) {                             // POST
-//            if (isTopic(httpRequest)) {                                // POST /topic
-//                topics.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
-//                topics.get(args[0]).offer(args[1]); // push to tail
-//                connection.notify();
-//                return postTopicRequest(args[0], args[1], connection.getAdders());
-//            } else {                                                                 // POST /queue
-//                queues.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
-//                queues.get(args[0]).offer(args[1]); // push to tail
-//                return postQueueRequest(args[0], args[1], connection.getAdders());
-//            }
-//        } else {                                                                    // GET
-//            if (isTopic(httpRequest)) {                                // GET /topic
-//                topicConnections.putIfAbsent(args[0], new CopyOnWriteArraySet<>());
-//                Set<SocketConnection> connections = topicConnections.get(args[0]);
-//                if (!connections.remove(connection)) { // если соединение уже было в наборе - то просто удаляем
-//                    connections.add(connection);//
-//                    topics.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
-//                    while (connections.contains(connection)) {
-//                        if (topics.get(args[0]).isEmpty()) {
-//                            try {
-//                                LOCK.wait();
-//                            } catch (InterruptedException e) {
-//                                e.printStackTrace();
-//                            }
-//                        }
-//                        while (!topics.get(args[0]).isEmpty()){
-//                            String text = topics.get(args[0]).removeFirst();
-//                            connections.forEach(c->{
-//                                String postTopicRequest = postTopicRequest(args[0], text, connection.getAdders());
-//                                c.writeLine(postTopicRequest);
-//                            });
-//                        }
-//                    }
-//                }
-//
-//
-////                connectionMap.compute(connection.getAdders(), (k,v)->{
-////                    if (v==null){
-////                        connectionMap.put(connection.getAdders(), connection);
-////                    } else {
-////                        connectionMap.remove(connection.getAdders());
-////                    }
-////                    return v;
-////                });
-////                String response = topics.getOrDefault(args[0], emptyList()).poll();  // remove from head
-////                return HttpProcessor.postTopicRequest(args[0], response, connection.getAdders());
-//                return"";
-//            } else {                                                                 // GET /queue
-//                String response = queues.getOrDefault(args[0], emptyList()).poll(); // remove from head
-//                return postQueueRequest(args[0], response, connection.getAdders());
-//            }
-//        }
-//    }
+    static void processPostTopic(String httpRequest, Map<String, Topic> topics, SocketConnection connection) {
+        String[] args = HttpProcessor.parseJson(httpRequest);
+        topics.computeIfAbsent(args[0], v -> new Topic(args[0]));
+        topics.get(args[0]).postTopic(args[1]);
+        String response = postTopicRequest(args[0], args[1], connection.getAdders());
+        //todo close fix
+        MyLogger.log(httpRequest, response);
+        connection.writeLine(response);
+        try {
+            connection.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    static void processGetQueue(String httpRequest, Map<String, Deque<String>> queues, SocketConnection connection) {
+        String[] args = HttpProcessor.parseJson(httpRequest);
+        String result = queues.getOrDefault(args[0], emptyList()).poll();// remove from head
+        if (result == null) {
+            result = "no data";
+        }
+        String response = postQueueRequest(args[0], result, connection.getAdders());
+        MyLogger.log(httpRequest, response);
+        connection.writeLine(response);
+        try {
+            connection.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    static void processGetTopic(String httpRequest, Map<String, Topic> topics, SocketConnection connection) {
+        String[] args = HttpProcessor.parseJson(httpRequest);
+        topics.computeIfAbsent(args[0], v -> new Topic(args[0]));
+        if (!topics.get(args[0]).subscribe(connection, httpRequest)) {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     private static LinkedList<String> emptyList() {
         LinkedList<String> result = new LinkedList<>();
         result.add("no data");
         return result;
     }
-
-
-
-
-
 }
