@@ -79,6 +79,13 @@ public class SocketConnectionTest {
                     String[] response = HttpProcessor.parseJson(httpResponse);
                     Assert.assertEquals(queueOrTopic, response[0]);
                     Assert.assertTrue(assertion.test(response[1]) || response[1].equals("no data"));
+                    if(!modePost && !modeQueue) {
+                        Thread.sleep(500000);
+                        socketConnection.writeLine(httpRequest);
+                        httpResponse = socketConnection.readBlock();
+                        log(httpRequest, httpResponse);
+                        Assert.assertTrue(httpResponse.contains("unsubscribed"));
+                    }
                     counter = -1;
                 } catch (Exception e) {
                     warn("server is busy: " + Thread.currentThread().getName());
@@ -95,36 +102,25 @@ public class SocketConnectionTest {
 
     @Test
     public void postGetTopicTest() throws InterruptedException {
-        List<Thread> postWeatherTopic = Stream.generate(() -> new Thread(getRunnable(
-                true, false, "weather", temperaturesIterator.next(), x -> x.matches("-?(\\d+)"))))
-                .limit(10).peek(Thread::start).collect(Collectors.toList());
-        List<Thread> getWeatherTopic = Stream.generate(() -> new Thread(getRunnable(
-                false, false, "weather", "",  x -> x.matches("-?(\\d+)"))))
-                .limit(10).peek(Thread::start).collect(Collectors.toList());
-        for (Thread thread : postWeatherTopic) {
-            thread.join();
-        }
-        for (Thread thread : getWeatherTopic) {
-            thread.join();
-        }
-    }
-
-    @Test
-    public void post() throws InterruptedException {
-        List<Thread> postWeatherTopic = Stream.generate(() -> new Thread(getRunnable(
-                true, false, "weather", temperaturesIterator.next(), x -> x.matches("-?(\\d+)"))))
+        List<Thread> subscribers = Stream.generate(() -> new Thread(getRunnable(
+                false, false, "weather", "", "you have successfully subscribed on topic: \"weather\""::equals)))
                 .limit(2).peek(Thread::start).collect(Collectors.toList());
-//        List<Thread> getWeatherTopic = Stream.generate(() -> new Thread(getRunnable(
-//                false, false, "weather", "",  x -> x.matches("-?(\\d+)"))))
-//                .limit(10).peek(Thread::start).collect(Collectors.toList());
-        for (Thread thread : postWeatherTopic) {
-            thread.join();
-        }
-//        for (Thread thread : getWeatherTopic) {
-//            thread.join();
-//        }
-    }
+        subscribers.get(0).join();
+        Thread.sleep(10000);
+        List<Thread> producers = Stream.generate(() -> new Thread(getRunnable(
+                true, false, "weather", temperaturesIterator.next(), x -> x.matches("-?(\\d+)"))))
+                .limit(3).peek(Thread::start).collect(Collectors.toList());
+        subscribers.get(1).join();
+        Thread.sleep(10000);
 
+        producers.get(0).join();
+        Thread.sleep(10000);
+
+        producers.get(1).join();
+        Thread.sleep(10000);
+
+        producers.get(2).join();
+    }
 
 
 }

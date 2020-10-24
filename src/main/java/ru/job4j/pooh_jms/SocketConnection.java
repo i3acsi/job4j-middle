@@ -71,6 +71,10 @@ public class SocketConnection implements AutoCloseable {
         return res;
     }
 
+    public boolean alive() {
+        return socket.isConnected();
+    }
+
     @Override
     public void close() throws Exception {
         in.close();

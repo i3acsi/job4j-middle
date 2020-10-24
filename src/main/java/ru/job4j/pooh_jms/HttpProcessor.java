@@ -142,12 +142,20 @@ class HttpProcessor {
     static void processGetTopic(String httpRequest, Map<String, Topic> topics, SocketConnection connection) {
         String[] args = HttpProcessor.parseJson(httpRequest);
         topics.computeIfAbsent(args[0], v -> new Topic(args[0]));
-        if (!topics.get(args[0]).subscribe(connection, httpRequest)) {
-            try {
-                connection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
+        if (topics.get(args[0]).subscribe(connection, httpRequest)) {
+            while (connection.alive()) {
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
+        }
+
+        try {
+            connection.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
