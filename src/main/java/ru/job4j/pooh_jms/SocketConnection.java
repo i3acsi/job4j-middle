@@ -1,82 +1,64 @@
 package ru.job4j.pooh_jms;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.InetAddress;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
 public class SocketConnection implements AutoCloseable {
     private final Socket socket;
-    private final PrintWriter writer;
-    private final BufferedReader reader;
+    private final OutputStream out;
+    private final InputStream in;
     private final String url;
 
-    public SocketConnection(String url, int port) {
+    SocketConnection(String url, int port) {
         try {
             this.socket = getSocket(url, port);
-            this.writer = createWriter();
-            this.reader = createReader();
+            this.out = socket.getOutputStream();
+            this.in = socket.getInputStream();
             this.url = url;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public SocketConnection(ServerSocket server) {
+    SocketConnection(ServerSocket server) {
         try {
             this.socket = getSocket(server);
-            this.writer = createWriter();
-            this.reader = createReader();
-            this.url = server.getInetAddress().getHostName();
+            this.out = socket.getOutputStream();
+            this.in = socket.getInputStream();
+            this.url = server.getInetAddress().toString();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public String getAdders(){
-        return socket.getInetAddress().getHostAddress();
-    }
-
-    public void requestPostQueue(String queue, String text){
-        writeLine(HttpProcessor.postQueueRequest(queue, text, url));
-    }
-
-    public void requestPostTopic(String topic, String text){
-        writeLine(HttpProcessor.postTopicRequest(topic, text, url));
-    }
-
-    public void requestGetQueue(String queue){
-        writeLine(HttpProcessor.getQueueRequest(queue, url));
-    }
-
-    public void requestGetTopic(String topic){
-        writeLine(HttpProcessor.getQueueRequest(topic, url));
+    String getAdders() {
+        return socket.getInetAddress().toString();
     }
 
 
-    public void writeLine(String line) {
-        writer.println(line);
-        writer.flush();
+    void writeLine(String line) {
+        try {
+            out.write(line.getBytes());
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 
-
-    public String readBlock() {
-        StringBuilder result = new StringBuilder();
-
-        reader.lines().forEach(result::append);
-        return result.toString();
-    }
-
-    private PrintWriter createWriter() throws IOException {
-        return new PrintWriter(socket.getOutputStream());
-    }
-
-    private BufferedReader createReader() throws IOException {
-        return new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    String readBlock() {
+        try {
+            byte[] data = new byte[32 * 1024];
+            int readBytes = 0;
+            readBytes = in.read(data);
+            return new String(data, 0, readBytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 
     private Socket getSocket(String url, int port) throws IOException {
@@ -84,13 +66,15 @@ public class SocketConnection implements AutoCloseable {
     }
 
     private Socket getSocket(ServerSocket server) throws IOException {
-        return server.accept();
+        Socket res = server.accept();
+        res.setSoTimeout(1000);
+        return res;
     }
 
     @Override
     public void close() throws Exception {
-        writer.close();
-        reader.close();
+        in.close();
+        out.close();
         socket.close();
     }
 

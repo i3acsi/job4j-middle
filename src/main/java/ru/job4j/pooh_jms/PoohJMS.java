@@ -1,101 +1,99 @@
 package ru.job4j.pooh_jms;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Deque;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static ru.job4j.pooh_jms.HttpProcessor.*;
 
 public class PoohJMS {
-    private final ForkJoinPool pool = ForkJoinPool.commonPool();
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
     private final int port = 3345;
     private final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
     private final Map<String, Deque<String>> topics = new ConcurrentHashMap<>();
-    private static AtomicBoolean flag = new AtomicBoolean(true);
+    private final Map<String, SocketConnection> connectionMap = new ConcurrentHashMap<>();
+    private static final Logger log = LoggerFactory.getLogger(PoohJMS.class);
+    private static final String TAB = "\t\t\t\t\t\t\t\t\t";
+    private static final String LN = System.lineSeparator();
 
 
     {
+        Thread serverProcessor = new Thread(this::run);
+        serverProcessor.setDaemon(true);
+        serverProcessor.start();
+        interruptOnKey();
+        executorService.shutdown();
+        System.out.println("exit");
+    }
+
+    private void interruptOnKey() {
+        Scanner scanner = new Scanner(System.in);
+        String msg = ("type \"stop\" to stop the server");
+        String in = "";
+        while (!in.equals("stop")) {
+            System.out.println(msg);
+            in = scanner.nextLine();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+    public static void main(String[] args) {
+        new PoohJMS();
+    }
+
+    private void run() {
         try (ServerSocket server = new ServerSocket(port)) {
-            System.out.println("server started");
-            while (flag.get()) {
-                try (SocketConnection connection = new SocketConnection(server)) {
-                        System.out.println("client connected: " + connection.getAdders());
-                        Runnable task = () -> {
-                            String httpRequest = connection.readBlock();
-                            System.out.println("REQUEST: \r\n" + httpRequest);
-                            String response = getHttpResponse(httpRequest, connection.getAdders());
-                            System.out.println("RESPONSE: " + response);
-                            connection.writeLine(response);
-                            System.out.println("response submit");
-                        };
-                        ForkJoinTask response = pool.submit(task);
-                        pool.invoke(response);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+            log.info("server started");
+            while (!Thread.currentThread().isInterrupted()) {
+                SocketConnection connection = new SocketConnection(server);
+                Runnable task = () -> {
+                    String httpRequest = connection.readBlock();
+                    log.info("client connected: " + connection.getAdders());
+                    String httpResponse = "";
+                    if (isPostRequest(httpRequest)) {            // POST
+                        if (isTopic(httpRequest)) {             //POST /topic
+                            httpResponse = getHttpResponseOnPostTopic(httpRequest, queues, connection.getAdders());
+                        } else {                                 //POST /queue
+                            httpResponse = getHttpResponseOnPostQueue(httpRequest, queues, connection.getAdders());
+                        }
+                    } else {
+                        if (isTopic(httpRequest)) {             //GET /topic
+
+                        } else {                                 //GET /queue
+                            httpResponse = getHttpResponseOnGetQueue(httpRequest, queues, connection.getAdders());
+                        }
+                    }
+                    log.info("HTTP REQUEST:\r\n" + httpRequest + addTab("RESPONSE:\r\n" + httpResponse) + LN + LN + LN);
+                    connection.writeLine(httpResponse);
+                    try {
+                        connection.close();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                };
+                executorService.submit(task);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private String getHttpResponse(String httpRequest, String ip) {
-        String[] args = HttpProcessor.parseJson(httpRequest);
-        if (HttpProcessor.isPostRequest(httpRequest)) {                             // POST
-            if (HttpProcessor.isTopic(httpRequest)) {                                // POST /topic
-                topics.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
-                topics.get(args[0]).offer(args[1]); // push to tail
-                System.out.println("OK");
-                return HttpProcessor.postTopicRequest(args[0], args[1], ip);
-            } else {                                                                 // POST /queue
-                queues.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
-                System.out.println("OK");
-                queues.get(args[0]).offer(args[1]); // push to tail
-                return HttpProcessor.postQueueRequest(args[0], args[1], ip);
-            }
-        } else {                                                                    // GET
-            if (HttpProcessor.isTopic(httpRequest)) {                                // GET /topic
-                String response = topics.getOrDefault(args[0], new LinkedList<>()).poll();  // remove from head
-                System.out.println("OK");
-                return HttpProcessor.postTopicRequest(args[0], response, ip);
-            } else {                                                                 // GET /queue
-                String response = queues.getOrDefault(args[0], new LinkedList<>()).poll(); // remove from head
-                System.out.println("OK");
-                return HttpProcessor.postQueueRequest(args[0], response, ip);
-            }
-        }
+    static String addTab(String string) {
+        return string.lines().reduce("", (x, y) -> TAB + x + LN + TAB + y);
     }
 
-//    private void observer() {
-//        Thread t = new Thread(() -> {
-//            Scanner scanner = new Scanner(System.in);
-//            System.out.println("type \"stop\" to stop the server");
-//            String in = scanner.nextLine();
-//            while (!in.equals("stop")) {
-//                in = scanner.nextLine();
-//                try {
-//                    Thread.sleep(1000);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//            System.out.println("exit");
-//            flag.set(false);
-//            Thread.currentThread().interrupt();
-//        });
-//        t.start();
-//        try {
-//            t.join();
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-//    }
-
-    public static void main(String[] args) throws InterruptedException {
-        PoohJMS poohJMS = new PoohJMS();
-    }
 
 }
