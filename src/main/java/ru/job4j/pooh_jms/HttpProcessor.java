@@ -4,14 +4,15 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class HttpProcessor {
     private static final String LN = System.lineSeparator();
     private static final Object LOCK = new Object();
+    private static final AtomicInteger counter = new AtomicInteger(0);
 
 
     static String postQueueRequest(String queue, String text, String hostUrl) {
@@ -58,6 +59,14 @@ class HttpProcessor {
         return httpRequest.substring(httpRequest.indexOf("{"));
     }
 
+    private static String firstLine(String request) {
+        return request.split(LN)[0];
+    }
+
+    static boolean isCloseConnectionRequest(String httpRequest) {
+        return firstLine(httpRequest).contains("/exit");
+    }
+
     static boolean isPostRequest(String httpRequest) {
         boolean result = httpRequest.startsWith("POST");
         if (!result) {
@@ -69,10 +78,11 @@ class HttpProcessor {
     }
 
     static boolean isTopic(String httpRequest) {
-        String line = httpRequest.substring(0, httpRequest.indexOf(LN));
+        String line = firstLine(httpRequest);
         boolean result = line.endsWith("topic");
         if (!result) {
             if (!line.endsWith("queue")) {
+                System.out.println(httpRequest);
                 throw new RuntimeException("wrong http request!");
             }
         }
@@ -89,6 +99,8 @@ class HttpProcessor {
             result[0] = (tmp = obj.get("topic")) == null ? obj.get("queue").toString() : (String) tmp;
             result[1] = (tmp = obj.get("text")) == null ? null : (String) tmp;
         } catch (ParseException e) {
+            //todo DEL
+            System.out.println("<#####" + httpRequest + " ######>");
             e.printStackTrace();
         }
         return result;
@@ -101,26 +113,17 @@ class HttpProcessor {
         String response = postQueueRequest(args[0], args[1], connection.getAdders());
         MyLogger.log(httpRequest, response);
         connection.writeLine(response);
-        try {
-            connection.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
-    static void processPostTopic(String httpRequest, Map<String, Topic> topics, SocketConnection connection) {
+    static void processPostTopic(String httpRequest, Map<String, CopyOnWriteArraySet<SocketConnection>> topics, SocketConnection connection) {
         String[] args = HttpProcessor.parseJson(httpRequest);
-        topics.computeIfAbsent(args[0], v -> new Topic(args[0]));
-        topics.get(args[0]).postTopic(args[1]);
+        topics.computeIfAbsent(args[0], v -> new CopyOnWriteArraySet<>());
+        int subs = topics.get(args[0]).size();
+        topics.get(args[0]).forEach(x -> x.writeLine(HttpProcessor.postTopicRequest(args[0], args[1], x.getAdders())));
+        MyLogger.log("\r\nThere are " + subs + " subscribers on " + args[0] + " topic");
         String response = postTopicRequest(args[0], args[1], connection.getAdders());
-        //todo close fix
         MyLogger.log(httpRequest, response);
         connection.writeLine(response);
-        try {
-            connection.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     static void processGetQueue(String httpRequest, Map<String, Deque<String>> queues, SocketConnection connection) {
@@ -132,36 +135,42 @@ class HttpProcessor {
         String response = postQueueRequest(args[0], result, connection.getAdders());
         MyLogger.log(httpRequest, response);
         connection.writeLine(response);
-        try {
-            connection.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
-    static void processGetTopic(String httpRequest, Map<String, Topic> topics, SocketConnection connection) {
+    static void processGetTopic(String httpRequest, Map<String, CopyOnWriteArraySet<SocketConnection>> topics, SocketConnection connection) {
         String[] args = HttpProcessor.parseJson(httpRequest);
-        topics.computeIfAbsent(args[0], v -> new Topic(args[0]));
-        if (topics.get(args[0]).subscribe(connection, httpRequest)) {
-            while (connection.alive()) {
-                try {
-                    Thread.sleep(10000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        try {
-            connection.close();
-        } catch (Exception e) {
-            e.printStackTrace();
+        topics.computeIfAbsent(args[0], v -> new CopyOnWriteArraySet<>());
+        if (topics.get(args[0]).contains(connection)) {
+            topics.get(args[0]).remove(connection);
+            String response = HttpProcessor.postTopicRequest(args[0], String.format("you have successfully unsubscribed on topic: \"%s\"", args[0]), connection.getAdders());
+            connection.writeLine(response);
+            MyLogger.log(httpRequest, response);
+        } else {
+            topics.get(args[0]).add(connection);
+            String response = HttpProcessor.postTopicRequest(args[0], String.format("you have successfully subscribed on topic: \"%s\"", args[0]), connection.getAdders());
+            connection.writeLine(response);
+            MyLogger.log(httpRequest, response);
         }
     }
 
     private static LinkedList<String> emptyList() {
         LinkedList<String> result = new LinkedList<>();
         result.add("no data");
+        return result;
+    }
+
+    static List<String> splitResponse(String response) {
+        List<String> result = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        for (String line : response.split(LN)) {
+            if (line.contains("{") && line.contains("}")) {
+                sb.append(line);
+                result.add(sb.toString());
+                sb = new StringBuilder();
+            } else {
+                sb.append(line).append(LN);
+            }
+        }
         return result;
     }
 }

@@ -10,7 +10,7 @@ public class MyLogger {
 
     public static void log(String request, String response) {
         log.info("<<<<<<<<<<<" + Thread.currentThread().getName() + "\r\nHTTP REQUEST:\r\n"
-                + request + addTab("HTTP RESPONSE:\r\n" + response + ">>>>>>>>>"));
+                + request + addTab("HTTP RESPONSE:\r\n" + response + ">>>>>>>>>\r\n\r\n"));
 
     }
 

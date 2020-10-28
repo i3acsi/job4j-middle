@@ -4,77 +4,65 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Deque;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executor;
 
 import static ru.job4j.pooh_jms.HttpProcessor.*;
 import static ru.job4j.pooh_jms.MyLogger.log;
 
-public class PoohJMS {
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-    private final int port = 3345;
+public class PoohJMS extends JmsCli {
+
     private final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
-    private final Map<String,Topic> topics = new ConcurrentHashMap<>();
-    {
-        Thread serverProcessor = new Thread(this::run);
-        serverProcessor.setDaemon(true);
-        serverProcessor.start();
-        interruptOnKey();
-        executorService.shutdown();
-        System.out.println("exit");
-    }
+    private final Map<String, CopyOnWriteArraySet<SocketConnection>> topics = new ConcurrentHashMap<>();
 
-    private void interruptOnKey() {
-        Scanner scanner = new Scanner(System.in);
-        String msg = ("type \"stop\" to stop the server");
-        String in = "";
-        while (!in.equals("stop")) {
-            System.out.println(msg);
-            in = scanner.nextLine();
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-
-    public static void main(String[] args) {
-        new PoohJMS();
-    }
-
-    private void run() {
-        try (ServerSocket server = new ServerSocket(port)) {
-            log("server started");
+    public PoohJMS(Executor executor) {
+        try(ServerSocket socket = new ServerSocket(port)) {
+            System.out.println("server started");
             while (!Thread.currentThread().isInterrupted()) {
-                SocketConnection connection = new SocketConnection(server);
-                Runnable task = () -> {
-                    String httpRequest = connection.readBlock();
-                    log("client connected: " + connection.getAdders());
-                    processHttpRequest(httpRequest, connection);
-                };
-                executorService.submit(task);
+                System.out.println("wait fo client");
+                SocketConnection connection = new SocketConnection(socket);
+                log("\r\nclient connected: " + connection.getAdders());
+                executor.execute(()->{
+                    while (connection.isAlive()) {
+                        String httpRequest = "";
+                        try {
+                            httpRequest = connection.readBlock();
+                        } catch (IOException e) {
+                            break;
+                        }
+                        processHttpRequest(httpRequest, connection);
+                    }
+                });
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+
     private void processHttpRequest(String httpRequest, SocketConnection connection) {
-        if (isPostRequest(httpRequest)) {            // POST
-            if (isTopic(httpRequest)) {             //POST /topic
-                processPostTopic(httpRequest, topics, connection);
-            } else {                                 //POST /queue
-                processPostQueue(httpRequest, queues, connection);
+        if (isCloseConnectionRequest(httpRequest)) {
+            try {
+                String address = connection.getAdders();
+                connection.close();
+                log("client disconnected: " + address);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         } else {
-            if (isTopic(httpRequest)) {             //GET /topic
-                processGetTopic(httpRequest, topics, connection);
-            } else {                                 //GET /queue
-                processGetQueue(httpRequest, queues, connection);
+            if (isPostRequest(httpRequest)) {            // POST
+                if (isTopic(httpRequest)) {             //POST /topic
+                    processPostTopic(httpRequest, topics, connection);
+                } else {                                 //POST /queue
+                    processPostQueue(httpRequest, queues, connection);
+                }
+            } else {
+                if (isTopic(httpRequest)) {             //GET /topic
+                    processGetTopic(httpRequest, topics, connection);
+                } else {                                 //GET /queue
+                    processGetQueue(httpRequest, queues, connection);
+                }
             }
         }
     }
