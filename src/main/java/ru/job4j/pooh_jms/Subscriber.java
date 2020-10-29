@@ -1,54 +1,72 @@
 package ru.job4j.pooh_jms;
 
+import java.io.InputStream;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static ru.job4j.pooh_jms.MyLogger.log;
-
-public class Subscriber extends JmsCli implements Runnable {
+public class Subscriber extends JmsCli {
     private Set<String> topics;
     private List<String> responses = new CopyOnWriteArrayList<>();
-    private SocketConnection connection;
-    private String closeRequest = new String("POST /exit");
 
-
-    public Subscriber(Set<String> topics) {
-        this.topics = topics;
-        this.connection = new SocketConnection(url, port);
-        log("\r\nConnected: " + url);
+    public Subscriber(SocketConnection connection, InputStream in) {
+        Thread daemon = new Thread(() -> {
+            while (connection.isAlive()) {
+                readResponse(connection, responses);
+            }
+        });
+        daemon.setDaemon(true);
+        daemon.start();
+        Scanner scanner = new Scanner(in);
+        String line = "";
+        while (!"stop".equals(line)) {
+            System.out.println("type stop to terminate, or name of topic to subscribe / unsubscribe");
+            if (line.length() > 0 && !line.contains(" ") && !line.contains("\r\n")) {
+                subscribe(line.toLowerCase().trim(), connection);
+            }
+            line = scanner.nextLine();
+        }
     }
 
+    private void subscribe(String topic, SocketConnection connection) {
+        String request = HttpProcessor.getTopicRequest(topic, connection.getName());
+        connection.writeLine(request); // после этого уже могут начать приходить сообщения по топику
+    }
 
     public List<String> getResponses() {
         return responses;
     }
 
-    @Override
-    public void run() {
+    public static void main(String[] args) {
+       new Subscriber(new SocketConnection("127.0.0.1", 3345, "subscriber"), System.in);
+    }
+
+    public Subscriber(Set<String> topics, SocketConnection connection) {
+        this.topics = topics;
         if (connection != null) {
+            new Thread(() -> {
+                while (connection.isAlive()) {
+                    readResponse(connection, responses);
+                }
+            }).start();
+
             topics.forEach(topic -> {
-                String request = HttpProcessor.getTopicRequest(topic, url);
-                connection.writeLine(request); // после этого уже могут начать приходить сообщения по топику
-                String response = connection.readBlockChecked();
-                responses.add(response);
-                log(request, response);
+                subscribe(topic, connection);
             });
-            int counter = 0;
-            while (counter < 4) {
-                String response = connection.readBlockChecked();
-                responses.add(response);
-                log("Response:\r\n<\t\t" + response + "\t\t>");
-                counter++;
+            try {
+                Thread.sleep(3000);
+                subscribe("weather", connection); //unsubscribe
+                Thread.sleep(1000);
+                connection.sendCloseRequest();
+                Thread.sleep(1000);
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            topics.forEach(topic -> {
-                String request = HttpProcessor.getTopicRequest(topic, url);
-                connection.writeLine(request);
-                String response = connection.readBlockChecked();
-                responses.add(response);
-                log(request, response);
-            });
-            connection.writeLine(closeRequest);
+
         }
+        System.out.println("disconnected");
     }
 }
+

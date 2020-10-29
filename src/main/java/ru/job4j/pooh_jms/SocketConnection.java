@@ -1,17 +1,21 @@
 package ru.job4j.pooh_jms;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class SocketConnection implements AutoCloseable {
     private final Socket socket;
     private final OutputStream out;
     private final InputStream in;
     private final String url;
+    private boolean alive = true;
+    private final String name;
+    private static final AtomicInteger counter = new AtomicInteger(0);
+
 
     @Override
     public boolean equals(Object o) {
@@ -26,12 +30,15 @@ public class SocketConnection implements AutoCloseable {
         return Objects.hash(socket);
     }
 
-    SocketConnection(String url, int port) {
+    SocketConnection(String url, int port, String name) {
         try {
             this.socket = getSocket(url, port);
             this.out = socket.getOutputStream();
             this.in = socket.getInputStream();
+            socket.getInputStream();
             this.url = url;
+            int i = counter.getAndIncrement();
+            this.name = name + " " + i;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -43,6 +50,7 @@ public class SocketConnection implements AutoCloseable {
             this.out = socket.getOutputStream();
             this.in = socket.getInputStream();
             this.url = server.getInetAddress().toString();
+            this.name = "server";
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -67,22 +75,20 @@ public class SocketConnection implements AutoCloseable {
 
         byte[] data = new byte[32 * 1024];
         int readBytes = 0;
-        try {
-            readBytes = in.read(data);
-        } catch (IOException e) {
-            e.printStackTrace();
+        while (readBytes == 0) {
+            try {
+                readBytes = in.read(data);
+            } catch (SocketTimeoutException ex) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         return new String(data, 0, readBytes);
-
-    }
-
-    String readBlock() throws IOException {
-
-            byte[] data = new byte[32 * 1024];
-            int readBytes = 0;
-            readBytes = in.read(data);
-            return new String(data, 0, readBytes);
-
     }
 
     private Socket getSocket(String url, int port) throws IOException {
@@ -95,13 +101,16 @@ public class SocketConnection implements AutoCloseable {
         return res;
     }
 
+    public String getName() {
+        return name;
+    }
+
     public boolean isAlive() {
-        try {
-            in.available();
-        } catch (IOException e) {
-            return false;
-        }
-        return true;
+        return alive;
+    }
+
+    public void sendCloseRequest() {
+        writeLine("POST /exit\r\n" + "Host: " + name);
     }
 
     @Override
@@ -109,7 +118,7 @@ public class SocketConnection implements AutoCloseable {
         in.close();
         out.close();
         socket.close();
+        this.alive = false;
     }
-
 }
 

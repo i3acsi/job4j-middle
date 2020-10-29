@@ -64,13 +64,14 @@ class HttpProcessor {
     }
 
     static boolean isCloseConnectionRequest(String httpRequest) {
-        return firstLine(httpRequest).contains("/exit");
+        return firstLine(httpRequest).equals("POST /exit");
     }
 
     static boolean isPostRequest(String httpRequest) {
         boolean result = httpRequest.startsWith("POST");
         if (!result) {
             if (!httpRequest.startsWith("GET")) {
+                System.out.println(httpRequest);
                 throw new RuntimeException("wrong http request!");
             }
         }
@@ -99,8 +100,6 @@ class HttpProcessor {
             result[0] = (tmp = obj.get("topic")) == null ? obj.get("queue").toString() : (String) tmp;
             result[1] = (tmp = obj.get("text")) == null ? null : (String) tmp;
         } catch (ParseException e) {
-            //todo DEL
-            System.out.println("<#####" + httpRequest + " ######>");
             e.printStackTrace();
         }
         return result;
@@ -120,7 +119,7 @@ class HttpProcessor {
         topics.computeIfAbsent(args[0], v -> new CopyOnWriteArraySet<>());
         int subs = topics.get(args[0]).size();
         topics.get(args[0]).forEach(x -> x.writeLine(HttpProcessor.postTopicRequest(args[0], args[1], x.getAdders())));
-        MyLogger.log("\r\nThere are " + subs + " subscribers on " + args[0] + " topic");
+        MyLogger.log("There are " + subs + " subscribers on " + args[0] + " topic");
         String response = postTopicRequest(args[0], args[1], connection.getAdders());
         MyLogger.log(httpRequest, response);
         connection.writeLine(response);

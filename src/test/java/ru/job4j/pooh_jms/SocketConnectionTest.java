@@ -3,6 +3,8 @@ package ru.job4j.pooh_jms;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.*;
+import java.nio.file.Files;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -10,6 +12,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -27,26 +30,99 @@ public class SocketConnectionTest {
     private Iterator<String> citiesIterator;
     private Iterator<String> temperaturesIterator;
     private List<String> cities = new CopyOnWriteArrayList<>();
-    private String closeRequest = new String("POST /exit");
     private Predicate<String> isWeather = s -> s.matches("-?(\\d+)");
     private Predicate<String> isCity = s -> cities.contains(s);
-    private final Executor executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-
     {
-        cities.addAll(List.of("Moscow", "London", "Cape Town", "Canberra", "Dakar", "Hanoi", "Helsinki", "Havana", "Kingston", "Kyiv", "Lisbon"));
+        cities.addAll(List.of("Moscow", "London", "Cape Town", "Canberra", "Dakar", "Hanoi", "Helsinki", "Havana", "Kingston", "Kyiv", "Lisbon", "Novosibirsk", "Saint_Petersburg", "Leningrad", "Yekaterinburg", "Chelyabinsk"));
         citiesIterator = cities.iterator();
         List<String> temperatures = new CopyOnWriteArrayList<>();
         IntStream.generate(() -> random.nextInt(100) - 50).limit(20).forEach(x -> temperatures.add(String.valueOf(x)));
         temperaturesIterator = temperatures.iterator();
     }
 
-    private SocketConnection getConnection() {
+    @Test
+    public void queueTest() throws InterruptedException {
+        AtomicInteger postWeatherCounter = new AtomicInteger(0);
+        List<Thread> postWeatherQueueThread = Stream.generate(() -> new Thread(
+                () -> {
+                    SocketConnection connection = getConnection("postWeatherQueue " + postWeatherCounter.getAndIncrement());
+                    if (connection != null) {
+                        postQueueWeather(connection);
+                        postQueueWeather(connection);
+                        connection.sendCloseRequest();
+                    }
+                }
+        ))
+                .limit(2).collect(Collectors.toList());
+        AtomicInteger getWeatherCounter = new AtomicInteger(0);
+        List<Thread> getWeatherQueueThread = Stream.generate(() -> new Thread(
+                () -> {
+                    SocketConnection connection = getConnection("getWeatherQueue " + getWeatherCounter.getAndIncrement());
+                    if (connection != null) {
+                        getQueueWeather(connection);
+                        getQueueWeather(connection);
+                        getQueueWeather(connection);
+                        connection.sendCloseRequest();
+                    }
+                }
+        ))
+                .limit(2).collect(Collectors.toList());
+
+        AtomicInteger postCityCounter = new AtomicInteger(0);
+        List<Thread> postCityQueueThread = Stream.generate(() -> new Thread(
+                () -> {
+                    SocketConnection connection = getConnection("postCityQueue " + postCityCounter.getAndIncrement());
+                    if (connection != null) {
+                        postQueueCity(connection);
+                        postQueueCity(connection);
+                        connection.sendCloseRequest();
+                    }
+                }
+        ))
+                .limit(2).collect(Collectors.toList());
+
+        AtomicInteger getCityCounter = new AtomicInteger(0);
+        List<Thread> getCityQueueThread = Stream.generate(() -> new Thread(
+                () -> {
+                    SocketConnection connection = getConnection("getCityQueue " + getCityCounter.getAndIncrement());
+                    if (connection != null) {
+                        getQueueCity(connection);
+                        getQueueCity(connection);
+                        getQueueCity(connection);
+                        connection.sendCloseRequest();
+                    }
+                }
+        ))
+                .limit(2).collect(Collectors.toList());
+
+
+        for (Thread thread : postWeatherQueueThread) {
+            thread.start();
+            thread.join();
+        }
+        for (Thread thread : getWeatherQueueThread) {
+            thread.start();
+            thread.join();
+        }
+        for (Thread thread : postCityQueueThread) {
+            thread.start();
+            thread.join();
+        }
+        for (Thread thread : getCityQueueThread) {
+            thread.start();
+            thread.join();
+        }
+
+    }
+
+
+    private SocketConnection getConnection(String name) {
         int attempt = 10;
         SocketConnection connection = null;
         while (attempt > 0) {
             try {
                 attempt--;
-                connection = new SocketConnection(url, port);
+                connection = new SocketConnection(url, port, name);
                 break;
             } catch (RuntimeException e) {
                 warn("Server is busy");
@@ -89,197 +165,74 @@ public class SocketConnectionTest {
         Assert.assertTrue(predicate.test(json[1]) || json[1].equals("no data"));
     }
 
-    private void closeConnection(SocketConnection connection) {
-        connection.writeLine(closeRequest);
-    }
-
-    @Test
-    public void queueTest() throws InterruptedException {
-        new Thread(() -> {
-            new PoohJMS(executor);
-        }).start();
-        List<Thread> postWeatherQueueThread = Stream.generate(() -> new Thread(
-                () -> {
-                    SocketConnection connection = getConnection();
-                    if (connection != null) {
-                        postQueueWeather(connection);
-                        postQueueWeather(connection);
-                        closeConnection(connection);
-                    }
-                }
-        ))
-                .limit(2).collect(Collectors.toList());
-        List<Thread> getWeatherQueueThread = Stream.generate(() -> new Thread(
-                () -> {
-                    SocketConnection connection = getConnection();
-                    if (connection != null) {
-                        getQueueWeather(connection);
-                        getQueueWeather(connection);
-                        getQueueWeather(connection);
-                        closeConnection(connection);
-                    }
-                }
-        ))
-                .limit(2).collect(Collectors.toList());
-
-        List<Thread> postCityQueueThread = Stream.generate(() -> new Thread(
-                () -> {
-                    SocketConnection connection = getConnection();
-                    if (connection != null) {
-                        postQueueCity(connection);
-                        postQueueCity(connection);
-                        closeConnection(connection);
-                    }
-                }
-        ))
-                .limit(2).collect(Collectors.toList());
-        List<Thread> getCityQueueThread = Stream.generate(() -> new Thread(
-                () -> {
-                    SocketConnection connection = getConnection();
-                    if (connection != null) {
-                        getQueueCity(connection);
-                        getQueueCity(connection);
-                        getQueueCity(connection);
-                        closeConnection(connection);
-                    }
-                }
-        ))
-                .limit(2).collect(Collectors.toList());
-
-
-        for (Thread thread : postWeatherQueueThread) {
-            thread.start();
-            thread.join();
-        }
-        for (Thread thread : getWeatherQueueThread) {
-            thread.start();
-            thread.join();
-        }
-        for (Thread thread : postCityQueueThread) {
-            thread.start();
-            thread.join();
-        }
-        for (Thread thread : getCityQueueThread) {
-            thread.start();
-            thread.join();
-        }
-
-    }
-
-    private void subscribe(SocketConnection connection, String topic) {
-        String request = HttpProcessor.getTopicRequest(topic, url);
-        connection.writeLine(request);
-        String response = connection.readBlockChecked();
-        System.out.println(request + "%%%" + response);
-    }
-
-    private void subscribeWeather(SocketConnection connection) {
-        subscribe(connection, "weather");
-    }
-
-    private void subscribeCity(SocketConnection connection) {
-        subscribe(connection, "city");
-    }
-
-    private void postTopic(SocketConnection connection, String name, Iterator<String> iterator) {
-        synchronized (connection) {
-            String request = HttpProcessor.postTopicRequest(name, iterator.next(), url);
-            connection.writeLine(request);
-            String response = connection.readBlockChecked();
-//        log(request, response);
-            assertJson(request, response);
-        }
-    }
-
-    private void postTopicWeather(SocketConnection connection) {
-        postTopic(connection, "weather", temperaturesIterator);
-    }
-
-    private void postTopicCity(SocketConnection connection) {
-        postTopic(connection, "city", citiesIterator);
-    }
-
-    private void readResponse(SocketConnection connection) {
-        String response = connection.readBlockChecked();
-        log("Subscriber receive response: <response>\r\n", response + "</response>");
-        List<String> responses = HttpProcessor.splitResponse(response);
-        responses.forEach(res -> {
-            String[] json = parseJson(res);
-            System.out.println(" !!! " + json[0] + "  !!!!!  " + json[1]);
-            Assert.assertTrue(json[0].equals("weather") || json[0].equals("city"));
-            try {
-                Assert.assertTrue(isCity.test(json[1]) || isWeather.test(json[1]));
-
-            } catch (AssertionError e) {
-                System.out.println("ERROR!! " + json[1]);
-            }
-        });
-    }
-
     @Test
     public void postGetTopicTest() throws InterruptedException {
-        Thread main = new Thread(() -> {
+        Executor executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+
+        Thread pooh = new Thread(() -> {
             new PoohJMS(executor);
         });
-        main.start();
+        pooh.start();
+
         Set<String> topics = Set.of("weather", "city");
+        Runnable subscribeTask = () -> {
+            SocketConnection connection = new SocketConnection("127.0.0.1", 3345, "subscriber");
+            Subscriber sub = new Subscriber(topics, connection);
+            System.out.println("subscriber is closed");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println("SUB RESPONSES:\r\n");
+            sub.getResponses().forEach(response -> {
+                String firsLine = response.split("\r\n")[0];
+                if ("GET /topic".equals(firsLine)) {
+                    assertJson(response, false);
+                } else if ("POST /topic".equals(firsLine)) {
+                    assertJson(response, true);
+                } else {
+                    throw new AssertionError("wrong response :\r\n" + response);
+                }
+            });
+        };
+        Thread t = new Thread(subscribeTask);
+        t.start();
+
         List<Topic> topicList = List.of(
-                new Topic("weather", temperaturesIterator.next()),
-                new Topic("weather", temperaturesIterator.next()),
-                new Topic("city", citiesIterator.next()),
-                new Topic("city", citiesIterator.next())
+                new Topic("weather", "34"),
+                new Topic("weather", "-12"),
+                new Topic("city", "Moscow"),
+                new Topic("city", "Novosibirsk"),
+                new Topic("weather", "3"),
+                new Topic("weather", "-1"),
+                new Topic("city", "Saint_Petersburg"),
+                new Topic("city", "Leningrad"),
+                new Topic("weather", "-24"),
+                new Topic("weather", "21"),
+                new Topic("city", "Yekaterinburg"),
+                new Topic("city", "Chelyabinsk")
 
         );
-
-        Subscriber subscriber = new Subscriber(topics);
-        Publisher publisher = new Publisher(topicList);
-
-        List<Thread> subscribeTopic = Stream.generate(() -> new Thread(
-                subscriber
-        ))
-                .limit(1).peek(Thread::start).collect(Collectors.toList());
-
-        List<Thread> postTopic = Stream.generate(() -> new Thread(
-                publisher
-        ))
-                .limit(2).collect(Collectors.toList());
-        Thread.sleep(1000);
-        for (Thread thread : postTopic) {
-            thread.start();
-        }
-//        for (Thread thread : subscribeTopic) {
-//            thread.join();
-//        }
-        System.out.println("SUB RESPONSES:\r\n");
-        subscriber.getResponses().forEach(System.out::println);
-        System.out.println("\r\n\r\n\r\nPUB RESPONSES:\r\n");
-        publisher.getResponses().forEach(System.out::println);
-
-//        ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-//        service.execute(subscriber);
-//        Publisher publisher = new Publisher(List.of(
-//                new Topic("weather", temperaturesIterator.next()),
-//                new Topic("weather", temperaturesIterator.next()),
-//                new Topic("weather", temperaturesIterator.next()),
-//                new Topic("city", citiesIterator.next()),
-//                new Topic("city", citiesIterator.next()),
-//                new Topic("city", citiesIterator.next())
-//        ));
-//        Thread pub = new Thread(publisher);
-//        pub.start();
-//        subscriber.getResponses().forEach(System.out::println);
-//        executor.submit(new PoohJMS());
-//        executor.submit(new Subscriber(Set.of("weather", "city")));
-//        executor.submit(new Publisher(List.of(
-//                new Topic("weather", temperaturesIterator.next()),
-//                new Topic("weather", temperaturesIterator.next()),
-//                new Topic("weather", temperaturesIterator.next()),
-//                new Topic("city", citiesIterator.next()),
-//                new Topic("city", citiesIterator.next()),
-//                new Topic("city", citiesIterator.next())
-//        )));
-
-
+        Runnable postTask = () -> {
+            SocketConnection connection = new SocketConnection("127.0.0.1", 3345, "publisher");
+            Publisher pub = new Publisher(topicList, connection);
+            System.out.println("publisher is closed");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println("\r\n\r\n\r\nPUB RESPONSES:\r\n");
+            pub.getResponses().forEach(response -> {
+                String[] lines = response.split("\r\n");
+                Assert.assertEquals("POST /topic", lines[0]);
+                assertJson(response, true);
+            });
+        };
+        Thread t2 = new Thread(postTask);
+        t2.start();
+        t2.join();
     }
 
     private void assertJson(String request, String response) {
@@ -288,5 +241,13 @@ public class SocketConnectionTest {
         Assert.assertEquals(requestJson[0], responseJson[0]);
         Assert.assertEquals(requestJson[1], responseJson[1]);
 
+    }
+
+    private void assertJson(String response, boolean postRequest) {
+        String[] json = HttpProcessor.parseJson(response);
+        Assert.assertTrue("weather".equals(json[0]) || "city".equals(json[0]));
+        if (postRequest) {
+                Assert.assertTrue(isCity.test(json[1]) || isWeather.test(json[1]));
+        }
     }
 }

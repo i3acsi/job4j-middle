@@ -9,17 +9,17 @@ public class MyLogger {
     private static final String LN = System.lineSeparator();
 
     public static void log(String request, String response) {
-        log.info("<<<<<<<<<<<" + Thread.currentThread().getName() + "\r\nHTTP REQUEST:\r\n"
+        log.info(LN + "<<<<<<<<<<<" + Thread.currentThread().getName() + "\r\nHTTP REQUEST:\r\n"
                 + request + addTab("HTTP RESPONSE:\r\n" + response + ">>>>>>>>>\r\n\r\n"));
 
     }
 
     public static void log(String message) {
-        log.info(message);
+        log.info(LN + LN + message);
     }
 
     public static void warn(String message) {
-        log.warn(message);
+        log.warn(LN + message + LN);
     }
 
     private static String addTab(String string) {
