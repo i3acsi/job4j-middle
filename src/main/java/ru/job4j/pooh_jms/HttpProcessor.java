@@ -7,13 +7,10 @@ import org.json.simple.parser.ParseException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.atomic.AtomicInteger;
 
 class HttpProcessor {
     private static final String LN = System.lineSeparator();
-    private static final Object LOCK = new Object();
-    private static final AtomicInteger counter = new AtomicInteger(0);
-
+    static final String MSG_DELIMITER = "##@@";
 
     static String postQueueRequest(String queue, String text, String hostUrl) {
         return buildRequest(queue, text, false, true, hostUrl);
@@ -42,21 +39,22 @@ class HttpProcessor {
             obj.put("text", text);
         }
         String jsonString = obj.toJSONString();
-        StringBuilder result = postMode ?
-                new StringBuilder("POST ") :
-                new StringBuilder("GET ");
+        StringBuilder result = new StringBuilder();
+        result.append(postMode ?
+                "POST " :
+                "GET ");
         result.append(isTopic ? "/topic" : "/queue");
         result.append(LN).append("Accept: application/json")
                 .append(LN).append("Content-Type: application/json")
                 .append(LN).append(String.format("Content-Length: %d", jsonString.length() - 2))
                 .append(LN).append(String.format("Host: %s", url))
                 .append(LN).append(LN)
-                .append(jsonString).append(LN);
+                .append(jsonString);
         return result.toString();
     }
 
     private static String getJson(String httpRequest) {
-        return httpRequest.substring(httpRequest.indexOf("{"));
+        return httpRequest.substring(httpRequest.indexOf("{"), httpRequest.indexOf("}") + 1);
     }
 
     private static String firstLine(String request) {
@@ -100,6 +98,7 @@ class HttpProcessor {
             result[0] = (tmp = obj.get("topic")) == null ? obj.get("queue").toString() : (String) tmp;
             result[1] = (tmp = obj.get("text")) == null ? null : (String) tmp;
         } catch (ParseException e) {
+            System.out.println("JSON IS :" + json);
             e.printStackTrace();
         }
         return result;
@@ -110,7 +109,7 @@ class HttpProcessor {
         queues.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
         queues.get(args[0]).offer(args[1]); // push to tail
         String response = postQueueRequest(args[0], args[1], connection.getAdders());
-        MyLogger.log(httpRequest, response);
+        MyLogger.log(connection, httpRequest, response);
         connection.writeLine(response);
     }
 
@@ -119,9 +118,9 @@ class HttpProcessor {
         topics.computeIfAbsent(args[0], v -> new CopyOnWriteArraySet<>());
         int subs = topics.get(args[0]).size();
         topics.get(args[0]).forEach(x -> x.writeLine(HttpProcessor.postTopicRequest(args[0], args[1], x.getAdders())));
-        MyLogger.log("There are " + subs + " subscribers on " + args[0] + " topic");
+        MyLogger.log(connection, "There are " + subs + " subscribers on " + args[0] + " topic");
         String response = postTopicRequest(args[0], args[1], connection.getAdders());
-        MyLogger.log(httpRequest, response);
+        MyLogger.log(connection, httpRequest, response);
         connection.writeLine(response);
     }
 
@@ -132,7 +131,7 @@ class HttpProcessor {
             result = "no data";
         }
         String response = postQueueRequest(args[0], result, connection.getAdders());
-        MyLogger.log(httpRequest, response);
+        MyLogger.log(connection, httpRequest, response);
         connection.writeLine(response);
     }
 
@@ -143,12 +142,12 @@ class HttpProcessor {
             topics.get(args[0]).remove(connection);
             String response = HttpProcessor.postTopicRequest(args[0], String.format("you have successfully unsubscribed on topic: \"%s\"", args[0]), connection.getAdders());
             connection.writeLine(response);
-            MyLogger.log(httpRequest, response);
+            MyLogger.log(connection, httpRequest, response);
         } else {
             topics.get(args[0]).add(connection);
             String response = HttpProcessor.postTopicRequest(args[0], String.format("you have successfully subscribed on topic: \"%s\"", args[0]), connection.getAdders());
             connection.writeLine(response);
-            MyLogger.log(httpRequest, response);
+            MyLogger.log(connection, httpRequest, response);
         }
     }
 
@@ -158,18 +157,16 @@ class HttpProcessor {
         return result;
     }
 
-    static List<String> splitResponse(String response) {
-        List<String> result = new ArrayList<>();
-        StringBuilder sb = new StringBuilder();
-        for (String line : response.split(LN)) {
-            if (line.contains("{") && line.contains("}")) {
-                sb.append(line);
-                result.add(sb.toString());
-                sb = new StringBuilder();
-            } else {
-                sb.append(line).append(LN);
-            }
-        }
-        return result;
+    static String closeRequest(String name) {
+        return MSG_DELIMITER + "POST /exit\r\n" + "Host: " + name + MSG_DELIMITER;
     }
+
+    static String addDelimiter(String message) {
+        return MSG_DELIMITER + message + MSG_DELIMITER;
+    }
+
+    static String removeDelimiter(String message) {
+        return message.replaceAll(MSG_DELIMITER, "");
+    }
+
 }

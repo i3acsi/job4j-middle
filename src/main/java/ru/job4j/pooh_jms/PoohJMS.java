@@ -3,29 +3,43 @@ package ru.job4j.pooh_jms;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static ru.job4j.pooh_jms.HttpProcessor.*;
 import static ru.job4j.pooh_jms.MyLogger.log;
 
-public class PoohJMS extends JmsCli {
+public class PoohJMS extends JmsClient {
     private final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArraySet<SocketConnection>> topics = new ConcurrentHashMap<>();
+    private Runnable interruptServer;
 
-    public PoohJMS(Executor executor) {
+    {
+        interruptServer = () -> {
+            Scanner scanner = new Scanner(System.in);
+            String line = "";
+            while (!"stop".equals(line)) {
+                System.out.println("type stop to terminate the server");
+                line = scanner.nextLine();
+            }
+            System.exit(0);
+        };
+    }
+
+    public PoohJMS(ExecutorService executor) {
         executor.execute(interruptServer);
         try (ServerSocket server = new ServerSocket(port)) {
             while (!server.isClosed()) {
                 SocketConnection connection = new SocketConnection(server);
                 executor.execute(() -> {
                     while (connection.isAlive()) {
-                        String httpRequest = connection.readBlockChecked();
-                        processHttpRequest(httpRequest, connection);
+                        List<String> httpRequests = readHttp(connection, responses);
+                        httpRequests.forEach(request -> processHttpRequest(request, connection));
                     }
                 });
             }
@@ -39,10 +53,10 @@ public class PoohJMS extends JmsCli {
         if (isCloseConnectionRequest(httpRequest)) {
             try {
                 connection.close();
-                topics.forEach((k,v)->{
+                topics.forEach((k, v) -> {
                     v.remove(connection);
                 });
-                log("client disconnected: " + httpRequest.split("\r\n")[1].toLowerCase());
+                log(connection, "client disconnected: " + httpRequest.split("\r\n")[1].toLowerCase()); //todo!!! del?
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -67,13 +81,4 @@ public class PoohJMS extends JmsCli {
         new PoohJMS(Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()));
     }
 
-    private Runnable interruptServer = () -> {
-        Scanner scanner = new Scanner(System.in);
-        String line = "";
-        while (!"stop".equals(line)) {
-            System.out.println("type stop to terminate the server");
-            line = scanner.nextLine();
-        }
-        System.exit(0);
-    };
 }

@@ -3,6 +3,7 @@ package ru.job4j.pooh_jms;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -11,7 +12,6 @@ public class SocketConnection implements AutoCloseable {
     private final Socket socket;
     private final OutputStream out;
     private final InputStream in;
-    private final String url;
     private boolean alive = true;
     private final String name;
     private static final AtomicInteger counter = new AtomicInteger(0);
@@ -35,8 +35,6 @@ public class SocketConnection implements AutoCloseable {
             this.socket = getSocket(url, port);
             this.out = socket.getOutputStream();
             this.in = socket.getInputStream();
-            socket.getInputStream();
-            this.url = url;
             int i = counter.getAndIncrement();
             this.name = name + " " + i;
         } catch (IOException e) {
@@ -49,7 +47,6 @@ public class SocketConnection implements AutoCloseable {
             this.socket = getSocket(server);
             this.out = socket.getOutputStream();
             this.in = socket.getInputStream();
-            this.url = server.getInetAddress().toString();
             this.name = "server";
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -63,7 +60,8 @@ public class SocketConnection implements AutoCloseable {
 
     void writeLine(String line) {
         try {
-            out.write(line.getBytes());
+            String msg = HttpProcessor.addDelimiter(line);
+            out.write(msg.getBytes());
             out.flush();
         } catch (IOException e) {
             e.printStackTrace();
@@ -71,11 +69,10 @@ public class SocketConnection implements AutoCloseable {
     }
 
 
-    String readBlockChecked() {
-
-        byte[] data = new byte[32 * 1024];
+    String readBlock() {
+        byte[] data = new byte[128 * 1024];
         int readBytes = 0;
-        while (readBytes == 0) {
+        while (readBytes <= 0) {
             try {
                 readBytes = in.read(data);
             } catch (SocketTimeoutException ex) {
@@ -84,6 +81,8 @@ public class SocketConnection implements AutoCloseable {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+            } catch (SocketException e) {
+                    this.alive = false;
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -105,20 +104,20 @@ public class SocketConnection implements AutoCloseable {
         return name;
     }
 
-    public boolean isAlive() {
+    boolean isAlive() {
         return alive;
     }
 
-    public void sendCloseRequest() {
-        writeLine("POST /exit\r\n" + "Host: " + name);
+    void sendCloseRequest() {
+        writeLine(HttpProcessor.closeRequest(name));
     }
 
     @Override
     public void close() throws Exception {
+        this.alive = false;
         in.close();
         out.close();
         socket.close();
-        this.alive = false;
     }
 }
 

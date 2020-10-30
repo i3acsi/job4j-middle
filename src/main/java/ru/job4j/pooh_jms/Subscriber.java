@@ -6,14 +6,15 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class Subscriber extends JmsCli {
-    private Set<String> topics;
+import static ru.job4j.pooh_jms.JmsClient.*;
+
+public class Subscriber {
     private List<String> responses = new CopyOnWriteArrayList<>();
 
     public Subscriber(SocketConnection connection, InputStream in) {
         Thread daemon = new Thread(() -> {
             while (connection.isAlive()) {
-                readResponse(connection, responses);
+                readHttp(connection, responses);
             }
         });
         daemon.setDaemon(true);
@@ -27,6 +28,16 @@ public class Subscriber extends JmsCli {
             }
             line = scanner.nextLine();
         }
+        try {
+            connection.sendCloseRequest();
+            Thread.sleep(1000);
+            if (connection.isAlive()) {
+                System.out.println("forced close connection");
+                connection.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void subscribe(String topic, SocketConnection connection) {
@@ -39,15 +50,14 @@ public class Subscriber extends JmsCli {
     }
 
     public static void main(String[] args) {
-       new Subscriber(new SocketConnection("127.0.0.1", 3345, "subscriber"), System.in);
+        new Subscriber(new SocketConnection(url, port, "subscriber"), System.in);
     }
 
     public Subscriber(Set<String> topics, SocketConnection connection) {
-        this.topics = topics;
         if (connection != null) {
             new Thread(() -> {
                 while (connection.isAlive()) {
-                    readResponse(connection, responses);
+                    readHttp(connection, responses);
                 }
             }).start();
 
@@ -55,18 +65,15 @@ public class Subscriber extends JmsCli {
                 subscribe(topic, connection);
             });
             try {
-                Thread.sleep(3000);
+                Thread.sleep(500);
                 subscribe("weather", connection); //unsubscribe
-                Thread.sleep(1000);
                 connection.sendCloseRequest();
-                Thread.sleep(1000);
                 connection.close();
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
         }
-        System.out.println("disconnected");
     }
 }
 
