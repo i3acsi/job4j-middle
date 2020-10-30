@@ -1,41 +1,44 @@
 package ru.job4j.pooh_jms;
 
-import java.io.InputStream;
-import java.util.Scanner;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
-abstract class JmsClient extends JmsBase {
+abstract class Jms extends JmsBase {
     private final String terminalMessage;
     private final Predicate<String> checkLine;
     private final Predicate<String> correctLine;
-    private final Consumer<String> messageProcessor;
+    private final BiConsumer<String, SocketConnection> messageProcessor;
+    private final Supplier<String> input;
+    private final BiConsumer<String, SocketConnection> processRequest;
 
-    public JmsClient(String terminalMessage, Predicate<String> checkLine, Consumer<String> messageProcessor) {
+
+    public Jms(String terminalMessage, Predicate<String> checkLine, BiConsumer<String, SocketConnection> messageProcessor, Supplier<String> input, BiConsumer<String, SocketConnection> processRequest) {
         this.terminalMessage = terminalMessage;
         this.checkLine = checkLine;
         this.messageProcessor = messageProcessor;
         this.correctLine = line -> checkLine.test(line) && line.length() != 0 && !line.contains("\r\n") && !line.contains(" ");
+        this.input = input;
+        this.processRequest = processRequest;
     }
 
-    protected void start(SocketConnection connection, InputStream inputStream) {
+    final public void start(SocketConnection connection) {
         if (connection != null) {
             Thread daemon = new Thread(() -> {
                 while (connection.isAlive()) {
-                    readHttp(connection, responses);
+                    readHttp(connection, responses).forEach(req -> processRequest.accept(req, connection));
                 }
             });
             daemon.setDaemon(true);
             daemon.start();
-            Scanner scanner = new Scanner(inputStream);
             String line = "";
             while (!"stop".equals(line)) {
                 System.out.println("type stop to terminate" + terminalMessage);
                 if (correctLine.test(line)) {
-//                    String[] parts = line.split("/");
-//                    connection.writeLine(HttpProcessor.postTopicRequest(parts[0].toLowerCase().trim(), parts[1].toLowerCase().trim(), connection.getName()));
+                    messageProcessor.accept(line, connection);
                 }
-                line = scanner.nextLine();
+                line = input.get();
             }
         }
     }

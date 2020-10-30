@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 class HttpProcessor {
-    private static final String LN = System.lineSeparator();
+    static final String LN = System.lineSeparator();
     static final String MSG_DELIMITER = "##@@";
 
     static String postQueueRequest(String queue, String text, String hostUrl) {

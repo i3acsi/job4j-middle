@@ -17,3 +17,14 @@ public class Theme {
         return content;
     }
 }
+class Topic extends Theme {
+    public Topic(String name, String content) {
+        super(name, content);
+    }
+}
+
+class MyQueue extends Theme {
+    public MyQueue(String name, String content) {
+        super(name, content);
+    }
+}

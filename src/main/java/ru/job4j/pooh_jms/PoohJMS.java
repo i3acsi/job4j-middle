@@ -3,59 +3,52 @@ package ru.job4j.pooh_jms;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Deque;
-import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static ru.job4j.pooh_jms.HttpProcessor.*;
 import static ru.job4j.pooh_jms.MyLogger.log;
 
-public class PoohJMS extends JmsBase {
-    private final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
-    private final Map<String, CopyOnWriteArraySet<SocketConnection>> topics = new ConcurrentHashMap<>();
-    private Runnable interruptServer;
+public class PoohJMS extends Jms {
+    private static final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
+    private static final Map<String, CopyOnWriteArraySet<SocketConnection>> topics = new ConcurrentHashMap<>();
 
-    {
-        interruptServer = () -> {
-            Scanner scanner = new Scanner(System.in);
-            String line = "";
-            while (!"stop".equals(line)) {
-                System.out.println("type stop to terminate the server");
-                line = scanner.nextLine();
-            }
-            System.exit(0);
-        };
+    PoohJMS(String terminalMessage,
+            Predicate<String> checkLine,
+            BiConsumer<String, SocketConnection> messageProcessor,
+            Supplier<String> input,
+            BiConsumer<String, SocketConnection> processRequest) {
+        super(terminalMessage, checkLine, messageProcessor, input, processRequest);
     }
 
-    public PoohJMS(ExecutorService executor) {
-        executor.execute(interruptServer);
+
+    protected static PoohJMS getAndStart() {
+        Scanner scanner = new Scanner(System.in);
+        PoohJMS instance = new PoohJMS(".", s -> true, (s, c) -> {},
+                scanner::nextLine, PoohJMS::processHttpRequest);
         try (ServerSocket server = new ServerSocket(port)) {
             while (!server.isClosed()) {
                 SocketConnection connection = new SocketConnection(server);
-                executor.execute(() -> {
-                    while (connection.isAlive()) {
-                        List<String> httpRequests = readHttp(connection, responses);
-                        httpRequests.forEach(request -> processHttpRequest(request, connection));
-                    }
-                });
+                executorService.execute(() ->
+                    instance.start(connection)
+                );
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return instance;
     }
 
-
-    private void processHttpRequest(String httpRequest, SocketConnection connection) {
+    private static void processHttpRequest(String httpRequest, SocketConnection connection) {
         if (isCloseConnectionRequest(httpRequest)) {
             try {
                 connection.close();
-                topics.forEach((k, v) -> {
-                    v.remove(connection);
-                });
+                topics.forEach((k, v) -> v.remove(connection));
                 log(connection, "client disconnected: " + httpRequest.split("\r\n")[1].toLowerCase()); //todo!!! del?
             } catch (Exception e) {
                 e.printStackTrace();
@@ -78,7 +71,7 @@ public class PoohJMS extends JmsBase {
     }
 
     public static void main(String[] args) {
-        new PoohJMS(Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()));
+        PoohJMS.getAndStart();
     }
 
 }
