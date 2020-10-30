@@ -4,7 +4,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Scanner;
 
-public class Publisher extends JmsClient {
+public class Publisher extends JmsBase {
     public Publisher(SocketConnection connection, InputStream in) {
         if (connection != null) {
             Thread daemon = new Thread(() -> {
@@ -58,31 +58,11 @@ public class Publisher extends JmsClient {
         }
     }
 
-    public List<String> getResponses() {
-        return responses;
-    }
-
     public static void main(String[] args) {
         new Publisher(new SocketConnection(url, port, "publisher"), System.in);
     }
 }
 
-class Topic {
-    private final String name;
-    private final String content;
 
-    public Topic(String name, String content) {
-        this.name = name;
-        this.content = content;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getContent() {
-        return content;
-    }
-}
 
 

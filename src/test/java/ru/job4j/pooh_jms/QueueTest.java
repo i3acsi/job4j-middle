@@ -62,19 +62,29 @@ public class QueueTest {
     }
 
     @Test
-    public void queueTest() {
+    public void queueTest() throws InterruptedException {
+        Thread pooh = new Thread(()->new PoohJMS(executor));
+        pooh.start();
 
+        Thread pc1 = new Thread(postCityTask);
+        Thread pc2 = new Thread(postCityTask);
+pc1.start();
+pc2.start();
+pc1.join();
+pc2.join();
 //        executor.execute(() -> new PoohJMS(executor));
-//        executor.execute(postCityTask);
-//        executor.execute(postCityTask);
-//        executor.execute(getCityTask);
-//        executor.execute(getCityTask);
-//        executor.execute(postWeatherTask);
-//        executor.execute(postWeatherTask);
-//        executor.execute(getWeatherTask);
-//        executor.execute(getWeatherTask);
+        executor.execute(postCityTask);
+        executor.execute(postCityTask);
+        executor.execute(getCityTask);
+        executor.execute(getCityTask);
+        executor.execute(postWeatherTask);
+        executor.execute(postWeatherTask);
+        executor.execute(getWeatherTask);
+        executor.execute(getWeatherTask);
 //        Thread.sleep();
 //        while (!executor.isShutdown()) {
+        pooh.join();
+
 //        }
 
     }

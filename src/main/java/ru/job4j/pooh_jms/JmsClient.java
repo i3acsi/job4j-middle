@@ -1,52 +1,42 @@
 package ru.job4j.pooh_jms;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
+import java.io.InputStream;
+import java.util.Scanner;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
-import static ru.job4j.pooh_jms.MyLogger.log;
+abstract class JmsClient extends JmsBase {
+    private final String terminalMessage;
+    private final Predicate<String> checkLine;
+    private final Predicate<String> correctLine;
+    private final Consumer<String> messageProcessor;
 
-class JmsClient {
-    protected List<String> responses = new CopyOnWriteArrayList<>();
-    static int port;
-    static String url;
+    public JmsClient(String terminalMessage, Predicate<String> checkLine, Consumer<String> messageProcessor) {
+        this.terminalMessage = terminalMessage;
+        this.checkLine = checkLine;
+        this.messageProcessor = messageProcessor;
+        this.correctLine = line -> checkLine.test(line) && line.length() != 0 && !line.contains("\r\n") && !line.contains(" ");
+    }
 
-    static {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(JmsClient.class.getResourceAsStream("/jmsConfig")));
-        try {
-            port = Integer.parseInt(param(reader.readLine()));
-            url = param(reader.readLine());
-        } catch (IOException e) {
-            e.printStackTrace();
+    protected void start(SocketConnection connection, InputStream inputStream) {
+        if (connection != null) {
+            Thread daemon = new Thread(() -> {
+                while (connection.isAlive()) {
+                    readHttp(connection, responses);
+                }
+            });
+            daemon.setDaemon(true);
+            daemon.start();
+            Scanner scanner = new Scanner(inputStream);
+            String line = "";
+            while (!"stop".equals(line)) {
+                System.out.println("type stop to terminate" + terminalMessage);
+                if (correctLine.test(line)) {
+//                    String[] parts = line.split("/");
+//                    connection.writeLine(HttpProcessor.postTopicRequest(parts[0].toLowerCase().trim(), parts[1].toLowerCase().trim(), connection.getName()));
+                }
+                line = scanner.nextLine();
+            }
         }
-    }
-
-    /**
-     * It can be read several http-posts
-     *
-     * @param connection Current connection
-     * @param incoming   container for incoming requests
-     * @return list of http posts
-     */
-    static List<String> readHttp(SocketConnection connection, List<String> incoming) {
-        List<String> result = splitToHttpPosts(connection.readBlock());
-        result.forEach(post -> {
-            incoming.add(post);
-            log(connection, "incoming post is:\r\n" + post);
-
-        });
-        return result;
-    }
-
-    private static String param(String string) {
-        return string.substring(string.indexOf("=") + 1);
-    }
-
-    static List<String> splitToHttpPosts(String post) {
-        return Arrays.stream(post.split(HttpProcessor.MSG_DELIMITER)).map(HttpProcessor::removeDelimiter).filter(s -> s.length() > 0).collect(Collectors.toList());
     }
 }

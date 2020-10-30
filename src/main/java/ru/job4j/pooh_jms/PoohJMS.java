@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 import static ru.job4j.pooh_jms.HttpProcessor.*;
 import static ru.job4j.pooh_jms.MyLogger.log;
 
-public class PoohJMS extends JmsClient {
+public class PoohJMS extends JmsBase {
     private final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArraySet<SocketConnection>> topics = new ConcurrentHashMap<>();
     private Runnable interruptServer;

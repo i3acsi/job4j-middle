@@ -6,7 +6,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static ru.job4j.pooh_jms.JmsClient.*;
+import static ru.job4j.pooh_jms.JmsBase.*;
 
 public class Subscriber {
     private List<String> responses = new CopyOnWriteArrayList<>();
