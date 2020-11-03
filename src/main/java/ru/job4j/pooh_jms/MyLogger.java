@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MyLogger {
-    private static final Logger log = LoggerFactory.getLogger(PoohJMS.class);
+    private static final Logger log = LoggerFactory.getLogger(JmsBase.class);
     private static final String TAB = "\t\t\t\t\t\t\t\t\t";
     private static final String LN = System.lineSeparator();
 

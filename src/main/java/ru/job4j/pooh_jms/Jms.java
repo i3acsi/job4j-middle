@@ -1,45 +1,132 @@
 package ru.job4j.pooh_jms;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.Scanner;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-abstract class Jms extends JmsBase {
+public class Jms extends JmsBase {
     private final String terminalMessage;
-    private final Predicate<String> checkLine;
+    private final Supplier<String> input;
     private final Predicate<String> correctLine;
     private final BiConsumer<String, SocketConnection> messageProcessor;
-    private final Supplier<String> input;
-    private final BiConsumer<String, SocketConnection> processRequest;
+    private final BiConsumer<String, SocketConnection> processResponses;
 
-
-    public Jms(String terminalMessage, Predicate<String> checkLine, BiConsumer<String, SocketConnection> messageProcessor, Supplier<String> input, BiConsumer<String, SocketConnection> processRequest) {
-        this.terminalMessage = terminalMessage;
-        this.checkLine = checkLine;
-        this.messageProcessor = messageProcessor;
-        this.correctLine = line -> checkLine.test(line) && line.length() != 0 && !line.contains("\r\n") && !line.contains(" ");
-        this.input = input;
-        this.processRequest = processRequest;
+    public void startServer() {
+        AtomicReference<ServerSocket> ref;
+        try (ServerSocket server = new ServerSocket(port)) {
+            ref = new AtomicReference<>(server);
+            new Thread(() -> {
+                String line = "";
+                while (!line.equals("stop")) {
+                    System.out.println("type stop to terminate" + this.terminalMessage);
+                    line = input.get();
+                }
+                System.out.println("Terminate " + Thread.currentThread().getName());
+                try {
+                    ref.get().close();
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }).start();
+            while (!ref.get().isClosed()) {
+                try {
+                    SocketConnection connection = new SocketConnection(ref.get());
+                    System.out.println("connected");
+                    new Thread(() -> {
+                        while (connection.isAlive()) {
+                            readHttp(connection, responses).forEach(req -> processResponses.accept(req, connection));
+                        }
+                    }).start();
+                } catch (TimeoutException e) {
+                    MyLogger.warn("wait for connection");
+                }
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
-    final public void start(SocketConnection connection) {
-        if (connection != null) {
-            Thread daemon = new Thread(() -> {
+    public void startClient(String name) {
+        AtomicReference<String> line = new AtomicReference<>("");
+        try (SocketConnection connection = new SocketConnection(url, port, name)) {
+            new Thread(() -> {
+                while (!line.get().equals("stop")) {
+                    System.out.println("type stop to terminate" + this.terminalMessage);
+                    String tmp = input.get();
+                    line.set(tmp);
+                }
+                System.out.println("Terminate " + Thread.currentThread().getName());
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+            new Thread(() -> { //Thread?
                 while (connection.isAlive()) {
-                    readHttp(connection, responses).forEach(req -> processRequest.accept(req, connection));
+                    readHttp(connection, responses).forEach(req -> processResponses.accept(req, connection));
                 }
-            });
-            daemon.setDaemon(true);
-            daemon.start();
-            String line = "";
-            while (!"stop".equals(line)) {
-                System.out.println("type stop to terminate" + terminalMessage);
-                if (correctLine.test(line)) {
-                    messageProcessor.accept(line, connection);
+            }).start();
+            new Thread(() -> {
+                while (connection.isAlive()) {
+                    String tmp = line.getAndSet("");
+                    if (correctLine.test(tmp)) {
+                        messageProcessor.accept(tmp, connection);
+                    }
                 }
-                line = input.get();
+            }).start();
+            while (connection.isAlive()) {
+                Thread.sleep(1000);
             }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
+
+    /**
+     *
+     * @param terminalMessage
+     * @param checkLine
+     * @param messageProcessor
+     * @param input
+     * @param processResponses
+     */
+    public Jms(String terminalMessage,
+               Predicate<String> checkLine,
+               BiConsumer<String, SocketConnection> messageProcessor,
+               Supplier<String> input,
+               BiConsumer<String, SocketConnection> processResponses) {
+        this.terminalMessage = terminalMessage;
+        this.input = input;
+        this.messageProcessor = messageProcessor;
+        this.correctLine = line -> checkLine.test(line) && line.length() != 0 && !line.contains("\r\n") && !line.contains(" ");
+        this.processResponses = processResponses;
+    }
+
+    public Jms(String terminalMessage,
+               Predicate<String> checkLine,
+               BiConsumer<String, SocketConnection> messageProcessor,
+               BiConsumer<String, SocketConnection> processResponses) {
+        this.terminalMessage = terminalMessage;
+        this.messageProcessor = messageProcessor;
+        this.correctLine = line -> checkLine.test(line) && line.length() != 0 && !line.contains("\r\n") && !line.contains(" ");
+        this.input = () -> { //default
+            Scanner scanner = new Scanner(System.in);
+            while (!scanner.hasNext()) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            return scanner.nextLine();
+        };
+        this.processResponses = processResponses;
     }
 }

@@ -1,12 +1,15 @@
 package ru.job4j.pooh_jms;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Objects;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class SocketConnection implements AutoCloseable {
     private final Socket socket;
@@ -42,9 +45,10 @@ public class SocketConnection implements AutoCloseable {
         }
     }
 
-    SocketConnection(ServerSocket server) {
+    SocketConnection(ServerSocket server) throws TimeoutException{
         try {
             this.socket = getSocket(server);
+            if (socket == null) throw new TimeoutException("time out");
             this.out = socket.getOutputStream();
             this.in = socket.getInputStream();
             this.name = "server";
@@ -81,10 +85,9 @@ public class SocketConnection implements AutoCloseable {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            } catch (SocketException e) {
-                    this.alive = false;
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                this.alive = false;
+                return "";
             }
         }
         return new String(data, 0, readBytes);
