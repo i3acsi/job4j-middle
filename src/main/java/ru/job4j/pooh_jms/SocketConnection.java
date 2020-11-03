@@ -45,10 +45,9 @@ public class SocketConnection implements AutoCloseable {
         }
     }
 
-    SocketConnection(ServerSocket server) throws TimeoutException{
+    SocketConnection(ServerSocket server){
         try {
             this.socket = getSocket(server);
-            if (socket == null) throw new TimeoutException("time out");
             this.out = socket.getOutputStream();
             this.in = socket.getInputStream();
             this.name = "server";

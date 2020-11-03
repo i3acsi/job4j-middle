@@ -17,7 +17,7 @@ public class PoohJMS {
             try {
                 connection.close();
                 topics.forEach((k, v) -> v.remove(connection));
-                log(connection, "client disconnected: " + httpRequest.split("\r\n")[1].toLowerCase()); //todo!!! del?
+                log(connection, "client disconnected: " + (httpRequest.substring(httpRequest.lastIndexOf(":"))));
             } catch (Exception e) {
                 e.printStackTrace();
             }

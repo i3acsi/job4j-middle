@@ -3,7 +3,6 @@ package ru.job4j.pooh_jms;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Scanner;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
@@ -34,17 +33,13 @@ public class Jms extends JmsBase {
                 }
             }).start();
             while (!ref.get().isClosed()) {
-                try {
-                    SocketConnection connection = new SocketConnection(ref.get());
-                    System.out.println("connected");
+                 SocketConnection connection = new SocketConnection(ref.get());
+                System.out.println("connected");
                     new Thread(() -> {
                         while (connection.isAlive()) {
                             readHttp(connection, responses).forEach(req -> processResponses.accept(req, connection));
                         }
                     }).start();
-                } catch (TimeoutException e) {
-                    MyLogger.warn("wait for connection");
-                }
             }
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -55,13 +50,19 @@ public class Jms extends JmsBase {
         AtomicReference<String> line = new AtomicReference<>("");
         try (SocketConnection connection = new SocketConnection(url, port, name)) {
             new Thread(() -> {
-                while (!line.get().equals("stop")) {
+                String s = "";
+                while (true) {
                     System.out.println("type stop to terminate" + this.terminalMessage);
-                    String tmp = input.get();
-                    line.set(tmp);
+                    s = input.get();
+                    if (s.equals("stop")) {
+                        break;
+                    } else {
+                        line.set(s);
+                    }
                 }
                 System.out.println("Terminate " + Thread.currentThread().getName());
                 try {
+                    connection.sendCloseRequest();
                     connection.close();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -80,17 +81,15 @@ public class Jms extends JmsBase {
                     }
                 }
             }).start();
-            while (connection.isAlive()) {
-                Thread.sleep(1000);
-            }
+            while (connection.isAlive()){
 
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     /**
-     *
      * @param terminalMessage
      * @param checkLine
      * @param messageProcessor
