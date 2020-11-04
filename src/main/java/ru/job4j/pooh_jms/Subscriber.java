@@ -46,6 +46,6 @@ public class Subscriber {
 
 
     public static void main(String[] args) {
-        new Subscriber(false);
+        new Subscriber(true);
     }
 }

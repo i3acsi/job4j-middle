@@ -57,6 +57,7 @@ public class Publisher {
     }
 
     public static void main(String[] args) {
+//        new Thread(()->new Publisher(false));
         new Publisher(true);
     }
 }

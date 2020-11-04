@@ -5,17 +5,16 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Objects;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class SocketConnection implements AutoCloseable {
     private final Socket socket;
     private final OutputStream out;
     private final InputStream in;
-    private boolean alive = true;
+    private boolean alive = false;
     private final String name;
     private static final AtomicInteger counter = new AtomicInteger(0);
 
@@ -40,19 +39,21 @@ public class SocketConnection implements AutoCloseable {
             this.in = socket.getInputStream();
             int i = counter.getAndIncrement();
             this.name = name + " " + i;
+            this.alive = true;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new SocketClosedException(e.getMessage());
         }
     }
 
-    SocketConnection(ServerSocket server){
+    SocketConnection(ServerSocket server) {
         try {
             this.socket = getSocket(server);
             this.out = socket.getOutputStream();
             this.in = socket.getInputStream();
             this.name = "server";
+            this.alive = true;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new SocketClosedException(e.getMessage());
         }
     }
 
@@ -78,13 +79,16 @@ public class SocketConnection implements AutoCloseable {
         while (readBytes <= 0) {
             try {
                 readBytes = in.read(data);
+                System.out.println(readBytes);
             } catch (SocketTimeoutException ex) {
+                System.out.println("timeout");
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             } catch (Exception e) {
+                System.out.println("EXC");
                 this.alive = false;
                 return "";
             }
