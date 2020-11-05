@@ -4,12 +4,9 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Scanner;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -22,11 +19,11 @@ public class Jms extends JmsBase {
     private final BiConsumer<String, SocketConnection> processResponses;
     private final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
+
+
     public void startServer() {
         List<SocketConnection> connections = new CopyOnWriteArrayList<>();
-        AtomicReference<ServerSocket> ref;
         try (ServerSocket server = new ServerSocket(port)) {
-            ref = new AtomicReference<>(server);
             Runnable console = () -> {
                 String line = "";
                 while (!line.equals("stop")) {
@@ -38,17 +35,17 @@ public class Jms extends JmsBase {
                     for (SocketConnection connection : connections) {
                         connection.close();
                     }
-                    ref.get().close();
+                    server.close();
                 } catch (Exception ex) {
                     ex.printStackTrace();
-                    System.exit(0);
+                    System.exit(1);
                 }
             };
             executorService.submit(console);
-            while (!ref.get().isClosed()) {
+            while (!server.isClosed()) {
                 SocketConnection connection;
                 try {
-                    connection = new SocketConnection(ref.get());
+                    connection = new SocketConnection(server);
                     connections.add(connection);
                     System.out.println("connected");
                     Runnable task = () -> {
@@ -58,157 +55,59 @@ public class Jms extends JmsBase {
                         connections.remove(connection);
                     };
                     executorService.submit(task);
-                }catch (SocketClosedException e) {
-                    System.out.println("2"); //todo de
-                    ref.get().close();
+                } catch (SocketClosedException e) {
+                    server.close();
                     executorService.shutdown();
                     break;
                 }
             }
-            System.out.println("3"); //todo del
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("4"); //todo del
     }
 
     public void startClient(String name) {
-        AtomicReference<String> line = new AtomicReference<>("");
         try (SocketConnection connection = new SocketConnection(url, port, name)) {
-            Runnable console =() -> {
-                String s = "";
-                while (true) {
+            Runnable console = () -> {
+                String tmp;
+                while (connection.isAlive()) {
                     System.out.println("type stop to terminate" + this.terminalMessage);
-                    s = input.get();
-                    if (s.equals("stop")) {
+                    tmp = input.get();
+                    if (tmp.equals("stop")) {
                         break;
                     } else {
-                        line.set(s);
+                        if (correctLine.test(tmp)) {
+                            messageProcessor.accept(tmp, connection);
+                        }
                     }
                 }
-                System.out.println("Terminate " + Thread.currentThread().getName());
+                System.out.println("Terminate " + name);
                 try {
                     connection.sendCloseRequest();
                     connection.close();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    throw new SocketClosedException(e.getMessage());
                 }
             };
             executorService.submit(console);
-            new Thread(() -> { //Thread?
+            Runnable task = () -> { //Thread?
                 while (connection.isAlive()) {
                     readHttp(connection, responses).forEach(req -> processResponses.accept(req, connection));
                 }
-            }).start();
-            new Thread(() -> {
-                while (connection.isAlive()) {
-                    String tmp = line.getAndSet("");
-                    if (correctLine.test(tmp)) {
-                        messageProcessor.accept(tmp, connection);
-                    }
+            };
+            executorService.submit(task);
+            while (connection.isAlive()) {
+                if (!connection.checkConnection()) {
+                    executorService.shutdown();
+                    break;
                 }
-            }).start();
-            while (connection.isAlive()){
-
             }
+            System.exit(0);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-//    public void startServer() {
-//        Set<SocketConnection> connections = new CopyOnWriteArraySet<>();
-//        AtomicReference<ServerSocket> ref;
-//        try (ServerSocket server = new ServerSocket(port)) {
-//            ref = new AtomicReference<>(server);
-//            new Thread(() -> {
-//                String line = "";
-//                while (!line.equals("stop")) {
-//                    System.out.println("type stop to terminate" + this.terminalMessage);
-//                    line = input.get();
-//                }
-//                System.out.println("Terminate " + Thread.currentThread().getName());
-//                try {
-//                    for (SocketConnection connection : connections) {
-//                        System.out.println("close one"); //todo del
-//                        connection.close();
-//                    }
-//                    ref.get().close();
-//                } catch (Exception ex) {
-//                    ex.printStackTrace();
-//                }
-//            }).start();
-//            while (!ref.get().isClosed()) {
-//                SocketConnection connection;
-//                try {
-//                    connection = new SocketConnection(ref.get());
-//                    connections.add(connection);
-//                    System.out.println("connected");
-//                    Runnable task = () -> {
-//                        while (connection.isAlive()) {
-//                            readHttp(connection, responses).forEach(req -> processResponses.accept(req, connection));
-//                        }
-//                        System.out.println("closed"); //todo del
-//                        connections.remove(connection);
-//                    };
-//                    executorService.submit(task);
-//                } catch (RuntimeException e) {
-//                    MyLogger.warn("socket closed");
-//                    ref.get().close();
-//                    executorService.shutdown();
-//                    break;
-//                }
-//            }
-//        } catch (IOException ex) {
-//            ex.printStackTrace();
-//        }
-//    }
-//
-//    public void startClient(String name) {
-////        AtomicReference<String> line = new AtomicReference<>("");
-//        try (SocketConnection connection = new SocketConnection(url, port, name)) {
-//            Runnable inputTask = () -> {
-//                String s = "";
-//                while (true) {
-//                    System.out.println("type stop to terminate" + this.terminalMessage);
-//                    s = input.get();
-//                    if (s.equals("stop")) {
-//                        break;
-//                    } else {
-//                        if (correctLine.test(s)) {
-//                            messageProcessor.accept(s, connection);
-//                        }
-//                    }
-//                }
-//                MyLogger.warn("Terminate " + name);
-//                try {
-//                    connection.sendCloseRequest();
-//                    connection.close();
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
-//            };
-//            executorService.submit(inputTask);
-//            Runnable httpTask = () -> { //Thread?
-//                while (connection.isAlive()) {
-//                    System.out.println(connection.isAlive());
-//                    readHttp(connection, responses).forEach(req -> processResponses.accept(req, connection));
-//                }
-//                System.out.println("cloded!"); //todo del
-//            };
-//            executorService.submit(httpTask);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
-
-    /**
-     * @param terminalMessage
-     * @param checkLine
-     * @param messageProcessor
-     * @param input
-     * @param processResponses
-     */
     public Jms(String terminalMessage,
                Predicate<String> checkLine,
                BiConsumer<String, SocketConnection> messageProcessor,

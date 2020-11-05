@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static ru.job4j.pooh_jms.HttpProcessor.*;
 import static ru.job4j.pooh_jms.MyLogger.log;
@@ -37,6 +38,17 @@ public class PoohJMS {
             }
         }
     };
+    public PoohJMS(Supplier<String> input) {
+        Jms instance = new Jms(
+                ".",
+                s -> true,
+                (s, c) -> {
+                },
+                input,
+                httpProcessor
+        );
+        instance.startServer();
+    }
 
     public PoohJMS() {
         Jms instance = new Jms(

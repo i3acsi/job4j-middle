@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -14,7 +13,7 @@ public class SocketConnection implements AutoCloseable {
     private final Socket socket;
     private final OutputStream out;
     private final InputStream in;
-    private boolean alive = false;
+    private boolean alive;
     private final String name;
     private static final AtomicInteger counter = new AtomicInteger(0);
 
@@ -68,8 +67,26 @@ public class SocketConnection implements AutoCloseable {
             out.write(msg.getBytes());
             out.flush();
         } catch (IOException e) {
+            this.alive = false;
             e.printStackTrace();
         }
+    }
+
+    boolean checkConnection() {
+        try {
+            Thread.sleep(5000);
+            out.write(HttpProcessor.MSG_DELIMITER.getBytes());
+            out.flush();
+        } catch (Exception e) {
+            try {
+                this.close();
+            } catch (Exception ex) {
+                this.alive = false;
+                ex.printStackTrace();
+            }
+            return false;
+        }
+        return true;
     }
 
 
@@ -78,17 +95,17 @@ public class SocketConnection implements AutoCloseable {
         int readBytes = 0;
         while (readBytes <= 0) {
             try {
+                if (!this.alive) {
+                    return "";
+                }
                 readBytes = in.read(data);
-                System.out.println(readBytes);
             } catch (SocketTimeoutException ex) {
-                System.out.println("timeout");
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             } catch (Exception e) {
-                System.out.println("EXC");
                 this.alive = false;
                 return "";
             }

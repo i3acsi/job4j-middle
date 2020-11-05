@@ -1,6 +1,5 @@
 package ru.job4j.pooh_jms;
 
-import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -38,7 +37,7 @@ public class Publisher {
         this.terminalMessage = String.format(", or name_of_%s/text to post : name/text", queueMode ? "queue" : "topic");
         Function<String[], String> post = (queueMode) ?
                 (parts) -> HttpProcessor.
-                        postQueueRequest(parts[0].toLowerCase().trim(), parts[1].toLowerCase().trim(), parts[2])
+                        postQueueRequest(parts[0].trim(), parts[1].trim(), parts[2])
                 : (parts) -> HttpProcessor.
                 postTopicRequest(parts[0].toLowerCase().trim(), parts[1].toLowerCase().trim(), parts[2]);
         doPost = (message, connection) -> {
@@ -58,6 +57,6 @@ public class Publisher {
 
     public static void main(String[] args) {
 //        new Thread(()->new Publisher(false));
-        new Publisher(true);
+        new Publisher(false);
     }
 }

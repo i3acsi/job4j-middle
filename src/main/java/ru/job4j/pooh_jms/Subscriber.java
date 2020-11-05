@@ -36,9 +36,9 @@ public class Subscriber {
                 : ", or name of topic to subscribe/unsubscribe : \"topic_name\"";
         BiFunction<String, String, String> post = (queueMode) ?
                 (queue, hostUrl) -> HttpProcessor.
-                        getQueueRequest(queue.toLowerCase().trim(), hostUrl)
+                        getQueueRequest(queue.trim(), hostUrl)
                 : (topic, hostUrl) -> HttpProcessor.
-                getTopicRequest(topic.toLowerCase().trim(), hostUrl);
+                getTopicRequest(topic.trim(), hostUrl);
         subscribe = (queue, connection) ->
                 connection.writeLine(post.apply(queue, connection.getName()));
         return name;
@@ -46,6 +46,6 @@ public class Subscriber {
 
 
     public static void main(String[] args) {
-        new Subscriber(true);
+        new Subscriber(false);
     }
 }

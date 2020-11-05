@@ -22,8 +22,6 @@ class Tools {
     private static Predicate<String> isCity;
     private static BiFunction<String, String, Boolean> isSubscribeMsg = (name, message) -> String.format("you have successfully subscribed on topic: \"%s\"", name).equals(message);
     private static BiFunction<String, String, Boolean> isUnsubscribeMsg = (name, message) -> String.format("you have successfully unsubscribed on topic: \"%s\"", name).equals(message);
-    private static String url = "127.0.0.1";
-    private static int port = 3345;
 
     static {
         List<String> cities = new ArrayList<>(List.of("Moscow",
@@ -44,7 +42,7 @@ class Tools {
                 "Chelyabinsk"));
         getRandomCity = () -> cities.get(random.nextInt(cities.size() - 1));
         getRandomTemperature = () -> String.valueOf(random.nextInt(100) - 50);
-        isCity = cities::contains;
+        isCity = (city)->cities.stream().anyMatch(city::equalsIgnoreCase);
         getRandomTopic = () -> random.nextInt(5) - 3 > 0 ? new Topic("weather", getRandomTemperature.get())
                 : new Topic("city", getRandomCity.get());
 
@@ -56,7 +54,7 @@ class Tools {
         while (attempt > 0) {
             try {
                 attempt--;
-                connection = new SocketConnection(url, port, name);
+                connection = new SocketConnection(Jms.url, Jms.port, name);
                 break;
             } catch (RuntimeException e) {
                 warn("Server is busy");
