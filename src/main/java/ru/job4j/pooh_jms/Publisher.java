@@ -6,57 +6,51 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class Publisher {
-    private String terminalMessage;
-    private Predicate<String> checkLine = line -> line.split("/").length == 2;
-    private BiConsumer<String, SocketConnection> doPost;
+    private static Predicate<String> checkLine = line -> line.split("/").length == 2;
 
-    public Publisher(Supplier<String> input, BiConsumer<String, SocketConnection> processResponse, boolean queueMode) {
-        String name = init(queueMode);
-        new Jms(
-                terminalMessage,
+    public static void startPublisher(Supplier<String> input,
+                                      BiConsumer<String, SocketConnection> processResponse,
+                                      boolean queueMode) {
+        Object[] args = init(queueMode);
+        String name = args[0].toString();
+        new JmsClient(
+                args[1].toString(),
                 checkLine,
-                doPost,
+                (BiConsumer<String, SocketConnection>) args[2],
                 input,
                 processResponse
-        ).startClient(name);
+        ).start(name);
     }
 
-    public Publisher(boolean queueMode) {
-        String name = init(queueMode);
-        new Jms(
-                terminalMessage,
+    public static void startPublisher(boolean queueMode) {
+        Object[] args = init(queueMode);
+        String name = args[0].toString();
+        new JmsClient(
+                args[1].toString(),
                 checkLine,
-                doPost,
-                (s, c) -> {
-                }
-        ).startClient(name);
+                (BiConsumer<String, SocketConnection>) args[2]
+        ).start(name);
     }
 
-    private String init(boolean queueMode) {
+    private static Object[] init(boolean queueMode) {
+        Object[] result = new Object[3];
         String name = (queueMode) ? "queue_publisher" : "topic_publisher";
-        this.terminalMessage = String.format(", or name_of_%s/text to post : name/text", queueMode ? "queue" : "topic");
-        Function<String[], String> post = (queueMode) ?
-                (parts) -> HttpProcessor.
-                        postQueueRequest(parts[0].trim(), parts[1].trim(), parts[2])
-                : (parts) -> HttpProcessor.
-                postTopicRequest(parts[0].toLowerCase().trim(), parts[1].toLowerCase().trim(), parts[2]);
-        doPost = (message, connection) -> {
-            if (message.equals("stop")) {
-                try {
-                    connection.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            } else {
-                String[] parts = message.split("/");
-                connection.writeLine(post.apply(new String[]{parts[0], parts[1], connection.getName()}));
-            }
+        result[0] = name;
+        result[1] = String.format(", or name_of_%s/text to post : name/text", queueMode ? "queue" : "topic");
+        Function<String[], String> buildRequest = (queueMode) ?
+                (args) -> HttpProcessor.
+                        postQueueRequest(args[0], args[1], args[2])
+                : (args) -> HttpProcessor.
+                postTopicRequest(args[0], args[1], args[2]);
+        BiConsumer<String, SocketConnection> doPost = (message, connection) -> {
+            String[] parts = message.split("/");
+            connection.writeLine(buildRequest.apply(new String[]{parts[0], parts[1], connection.getName()}));
         };
-        return name;
+        result[2] = doPost;
+        return result;
     }
 
     public static void main(String[] args) {
-//        new Thread(()->new Publisher(false));
-        new Publisher(false);
+        Publisher.startPublisher(false);
     }
 }

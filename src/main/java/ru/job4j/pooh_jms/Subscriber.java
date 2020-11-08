@@ -5,47 +5,49 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 public class Subscriber {
-    private String terminalMessage;
-    private BiConsumer<String, SocketConnection> subscribe;
 
-    public Subscriber(Supplier<String> input, BiConsumer<String, SocketConnection> processResponse, boolean queueMode) {
-        String name = init(queueMode);
-        new Jms(
-                terminalMessage,
+    public static void startSubscriber(Supplier<String> input, BiConsumer<String, SocketConnection> processResponse, boolean queueMode) {
+        Object[] args = init(queueMode);
+        String name = args[0].toString();
+        new JmsClient(
+                args[1].toString(),
                 s -> true,
-                subscribe,
+                (BiConsumer<String, SocketConnection>) args[2],
                 input,
                 processResponse
-        ).startClient(name);
+        ).start(name);
     }
 
-    public Subscriber(boolean queueMode) {
-        String name = init(queueMode);
-        new Jms(
-                terminalMessage,
+    public static void startSubscriber(boolean queueMode) {
+        Object[] args = init(queueMode);
+        String name = args[0].toString();
+        new JmsClient(
+                args[1].toString(),
                 s -> true,
-                subscribe,
-                (s, c) -> {
-                }
-        ).startClient(name);
+                (BiConsumer<String, SocketConnection>) args[2]
+        ).start(name);
     }
 
-    private String init(boolean queueMode) {
+    private static Object[] init(boolean queueMode) {
+        Object[] result = new Object[3];
         String name = (queueMode) ? "queue_subscriber" : "topic_subscriber";
-        this.terminalMessage = (queueMode) ? ", or name of queue to read from queue: \"queue_name\""
+        result[0] = name;
+        result[1] = (queueMode) ? ", or name of queue to read from queue: \"queue_name\""
                 : ", or name of topic to subscribe/unsubscribe : \"topic_name\"";
-        BiFunction<String, String, String> post = (queueMode) ?
+        BiFunction<String, String, String>
+                post = (queueMode) ?
                 (queue, hostUrl) -> HttpProcessor.
                         getQueueRequest(queue.trim(), hostUrl)
                 : (topic, hostUrl) -> HttpProcessor.
                 getTopicRequest(topic.trim(), hostUrl);
-        subscribe = (queue, connection) ->
+        BiConsumer<String, SocketConnection> subscribe = (queue, connection) ->
                 connection.writeLine(post.apply(queue, connection.getName()));
-        return name;
+        result[2] = subscribe;
+        return result;
     }
 
 
     public static void main(String[] args) {
-        new Subscriber(false);
+        Subscriber.startSubscriber(false);
     }
 }

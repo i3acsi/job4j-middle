@@ -30,7 +30,7 @@ public class TopicTest {
             inProcess = false;
             return "stop";
         };
-        new PoohJMS(inputServer);
+        JmsServer.startServer(inputServer);
     };
 
     private final Runnable subscriberTask = () -> {
@@ -52,7 +52,7 @@ public class TopicTest {
             return res;
         };
         BiConsumer<String, SocketConnection> requestProcessor = (response, connection) -> isCorrectResponse(response);
-        new Subscriber(inputSub, requestProcessor, false);
+        Subscriber.startSubscriber(inputSub, requestProcessor, false);
     };
 
     private final Runnable postTask = () -> {
@@ -69,7 +69,7 @@ public class TopicTest {
             }
         };
         BiConsumer<String, SocketConnection> processRequest = (response, connection) -> isCorrectResponse(response);
-        new Publisher(inputPub, processRequest, false);
+        Publisher.startPublisher(inputPub, processRequest, false);
     };
 
     @Test

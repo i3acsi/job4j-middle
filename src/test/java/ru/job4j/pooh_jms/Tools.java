@@ -54,7 +54,7 @@ class Tools {
         while (attempt > 0) {
             try {
                 attempt--;
-                connection = new SocketConnection(Jms.url, Jms.port, name);
+                connection = new SocketConnection(Config.url, Config.port, name);
                 break;
             } catch (RuntimeException e) {
                 warn("Server is busy");
@@ -83,7 +83,7 @@ class Tools {
         String request = postQueueRequest(name, text.get(), connection.getName());
         connection.writeLine(request);
         String response = HttpProcessor.removeDelimiter(connection.readBlock());
-        log(connection, request, response);
+        log(connection.getName(), request, response);
         assertJson(request, response);
     }
 
@@ -91,7 +91,7 @@ class Tools {
         String request = getQueueRequest(name, connection.getName());
         connection.writeLine(request);
         String response = HttpProcessor.removeDelimiter(connection.readBlock());
-        log(connection, request, response);
+        log(connection.getName(), request, response);
         String[] json = parseJson(response);
         Assert.assertEquals(json[0], name);
         Assert.assertTrue(predicate.test(json[1]) || json[1].equals("no data"));

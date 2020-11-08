@@ -4,20 +4,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MyLogger {
-    private static final Logger log = LoggerFactory.getLogger(JmsBase.class);
+    private static final Logger log = LoggerFactory.getLogger(Config.class);
     private static final String TAB = "\t\t\t\t\t\t\t\t\t";
     private static final String LN = System.lineSeparator();
 
-    public static void log(SocketConnection connection, String request, String response) {
+    public static void log(String connectionName, String request, String response) {
         log.info(LN + LN + "<<<<<<<<<<<" + Thread.currentThread().getName() +
-                "\r\nFor host: " + connection.getName() +
+                "\r\nFor host: " + connectionName +
                 " HTTP REQUEST:\r\n" + request + addTab(
                 "HTTP RESPONSE:\r\n" + response + ">>>>>>>>>\r\n\r\n"));
 
     }
 
-    public static void log(SocketConnection connection, String message) {
-        log.info(formatMessage(connection.getName(), message));
+    public static void log(String connectionName, String message) {
+        log.info(formatMessage(connectionName, message));
     }
 
     public static void warn(SocketConnection connection, String message) {

@@ -4,10 +4,6 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.CopyOnWriteArraySet;
-
 class HttpProcessor {
     static final String LN = System.lineSeparator();
     static final String MSG_DELIMITER = "##@@";
@@ -101,59 +97,6 @@ class HttpProcessor {
             System.out.println("JSON IS :" + json);
             e.printStackTrace();
         }
-        return result;
-    }
-
-    static void processPostQueue(String httpRequest, Map<String, Deque<String>> queues, SocketConnection connection) {
-        String[] args = HttpProcessor.parseJson(httpRequest);
-        queues.computeIfAbsent(args[0], v -> new ConcurrentLinkedDeque<>());
-        queues.get(args[0]).offer(args[1]); // push to tail
-        String response = postQueueRequest(args[0], args[1], connection.getAdders());
-        MyLogger.log(connection, httpRequest, response);
-        connection.writeLine(response);
-    }
-
-    static void processPostTopic(String httpRequest, Map<String, CopyOnWriteArraySet<SocketConnection>> topics, SocketConnection connection) {
-        String[] args = HttpProcessor.parseJson(httpRequest);
-        topics.computeIfAbsent(args[0], v -> new CopyOnWriteArraySet<>());
-        int subs = topics.get(args[0]).size();
-        topics.get(args[0]).forEach(x -> x.writeLine(HttpProcessor.postTopicRequest(args[0], args[1], x.getAdders())));
-        MyLogger.log(connection, "There are " + subs + " subscribers on " + args[0] + " topic");
-        String response = postTopicRequest(args[0], args[1], connection.getAdders());
-        MyLogger.log(connection, httpRequest, response);
-        connection.writeLine(response);
-    }
-
-    static void processGetQueue(String httpRequest, Map<String, Deque<String>> queues, SocketConnection connection) {
-        String[] args = HttpProcessor.parseJson(httpRequest);
-        String result = queues.getOrDefault(args[0], emptyList()).poll();// remove from head
-        if (result == null) {
-            result = "no data";
-        }
-        String response = postQueueRequest(args[0], result, connection.getAdders());
-        MyLogger.log(connection, httpRequest, response);
-        connection.writeLine(response);
-    }
-
-    static void processGetTopic(String httpRequest, Map<String, CopyOnWriteArraySet<SocketConnection>> topics, SocketConnection connection) {
-        String[] args = HttpProcessor.parseJson(httpRequest);
-        topics.computeIfAbsent(args[0], v -> new CopyOnWriteArraySet<>());
-        if (topics.get(args[0]).contains(connection)) {
-            topics.get(args[0]).remove(connection);
-            String response = HttpProcessor.postTopicRequest(args[0], String.format("you have successfully unsubscribed on topic: \"%s\"", args[0]), connection.getAdders());
-            connection.writeLine(response);
-            MyLogger.log(connection, httpRequest, response);
-        } else {
-            topics.get(args[0]).add(connection);
-            String response = HttpProcessor.postTopicRequest(args[0], String.format("you have successfully subscribed on topic: \"%s\"", args[0]), connection.getAdders());
-            connection.writeLine(response);
-            MyLogger.log(connection, httpRequest, response);
-        }
-    }
-
-    private static LinkedList<String> emptyList() {
-        LinkedList<String> result = new LinkedList<>();
-        result.add("no data");
         return result;
     }
 
