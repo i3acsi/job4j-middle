@@ -1,19 +1,18 @@
 package ru.job4j.pooh_jms;
 
-import java.util.Deque;
 import java.util.LinkedList;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.BiConsumer;
 
 import static ru.job4j.pooh_jms.HttpProcessor.*;
+import static ru.job4j.pooh_jms.JmsServer.queues;
+import static ru.job4j.pooh_jms.JmsServer.topics;
 import static ru.job4j.pooh_jms.MyLogger.log;
 
+
 public class ServerUtils {
-    private static final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
-    private static final Map<String, CopyOnWriteArraySet<SocketConnection>> topics = new ConcurrentHashMap<>();
+
     public static final BiConsumer<String, SocketConnection> httpProcessor = (httpRequest, connection) -> {
         if (isCloseConnectionRequest(httpRequest)) {
             try {

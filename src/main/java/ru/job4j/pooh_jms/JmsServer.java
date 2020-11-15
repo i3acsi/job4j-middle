@@ -2,8 +2,12 @@ package ru.job4j.pooh_jms;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.Deque;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -13,6 +17,8 @@ import static ru.job4j.pooh_jms.Config.port;
 
 public class JmsServer extends JmsBase {
     private static final BiConsumer<String, SocketConnection> httpProcessor = ServerUtils.httpProcessor;
+    static final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
+    static final Map<String, CopyOnWriteArraySet<SocketConnection>> topics = new ConcurrentHashMap<>();
 
     public JmsServer(String terminalMessage,
                      Predicate<String> checkLine,
