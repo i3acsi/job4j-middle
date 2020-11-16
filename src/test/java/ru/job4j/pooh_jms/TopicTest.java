@@ -74,11 +74,6 @@ public class TopicTest {
 
     @Test
     public void postGetTopicTest() throws InterruptedException {
-//        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-//        executor.submit((startServer));
-//        executor.submit(subscriberTask);
-//        Thread.sleep(100);
-//        executor.submit(postTask);
         Thread server = new Thread(startServer);
         Thread sub = new Thread(subscriberTask);
         Thread pub = new Thread(postTask);

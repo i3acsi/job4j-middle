@@ -53,7 +53,6 @@ public class JmsServer extends JmsBase {
     }
 
 
-
     public void start() {
         List<SocketConnection> connections = new CopyOnWriteArrayList<>();
         try (ServerSocket server = new ServerSocket(port)) {
@@ -85,15 +84,18 @@ public class JmsServer extends JmsBase {
                         while (connection.isAlive()) {
                             readHttp(connection).forEach(req -> messageProcessor.accept(req, connection));
                         }
+                        System.out.println("disconnected");
                         connections.remove(connection);
                     };
-                    executorService.submit(task);
+//                    executorService.execute(task);
+                    new Thread(task).start();
                 } catch (SocketClosedException e) {
                     server.close();
                     executorService.shutdown();
                     break;
                 }
             }
+            executorService.shutdownNow();
         } catch (IOException e) {
             e.printStackTrace();
         }

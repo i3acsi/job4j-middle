@@ -13,7 +13,7 @@ public class SocketConnection implements AutoCloseable {
     private final Socket socket;
     private final OutputStream out;
     private final InputStream in;
-    private boolean alive;
+    volatile private boolean alive;
     private final String name;
     private static final AtomicInteger counter = new AtomicInteger(0);
 
@@ -103,7 +103,7 @@ public class SocketConnection implements AutoCloseable {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    return "";
                 }
             } catch (Exception e) {
                 this.alive = false;

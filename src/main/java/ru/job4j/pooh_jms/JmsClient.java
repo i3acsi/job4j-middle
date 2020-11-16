@@ -1,5 +1,6 @@
 package ru.job4j.pooh_jms;
 
+import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -57,14 +58,16 @@ public class JmsClient extends JmsBase {
                     readHttp(connection).forEach(req -> responsesProcessor.accept(req, connection));
                 }
             };
-            executorService.submit(task);
+            Future f = executorService.submit(task);
             while (connection.isAlive()) {
                 if (!connection.checkConnection()) {
+                    f.cancel(true);
                     executorService.shutdown();
+                    Thread.sleep(500);
+                    executorService.shutdownNow();
                     break;
                 }
             }
-            System.exit(0);
         } catch (Exception e) {
             e.printStackTrace();
         }
