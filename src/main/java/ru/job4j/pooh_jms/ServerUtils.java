@@ -11,9 +11,8 @@ import static ru.job4j.pooh_jms.JmsServer.topics;
 import static ru.job4j.pooh_jms.MyLogger.log;
 
 
-public class ServerUtils {
-
-    public static final BiConsumer<String, SocketConnection> httpProcessor = (httpRequest, connection) -> {
+class ServerUtils {
+    static final BiConsumer<String, SocketConnection> httpProcessor = (httpRequest, connection) -> {
         if (isCloseConnectionRequest(httpRequest)) {
             try {
                 connection.close();
@@ -45,7 +44,7 @@ public class ServerUtils {
         String queueName = json[0];
         String queueText = json[1];
         queues.computeIfAbsent(queueName, v -> new ConcurrentLinkedDeque<>());
-        queues.get(queueName).offer(queueText); // push to tail
+        queues.get(queueName).offer(queueText);
         String response = postQueueRequest(queueName, queueText, connection.getName());
         MyLogger.log(connection.getName(), httpRequest, response);
         connection.writeLine(response);

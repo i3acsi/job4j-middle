@@ -18,7 +18,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>ru.job4j.pooh_jms.PoohJMS</mainClass>
+                  <mainClass>ru.job4j.pooh_jms.JmsServer</mainClass>
                 </transformer>
               </transformers>
             </configuration>

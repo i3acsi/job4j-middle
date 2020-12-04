@@ -5,9 +5,7 @@ import java.net.ServerSocket;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -16,24 +14,26 @@ import static ru.job4j.pooh_jms.Config.port;
 
 
 public class JmsServer extends JmsBase {
-    private static final BiConsumer<String, SocketConnection> httpProcessor = ServerUtils.httpProcessor;
     static final Map<String, Deque<String>> queues = new ConcurrentHashMap<>();
     static final Map<String, CopyOnWriteArraySet<SocketConnection>> topics = new ConcurrentHashMap<>();
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
 
-    public JmsServer(String terminalMessage,
-                     Predicate<String> checkLine,
-                     BiConsumer<String, SocketConnection> messageProcessor,
-                     Supplier<String> input) {
+
+    private JmsServer(String terminalMessage,
+                      Predicate<String> checkLine,
+                      BiConsumer<String, SocketConnection> messageProcessor,
+                      Supplier<String> input) {
         super(terminalMessage, checkLine, messageProcessor, input);
     }
 
-    public JmsServer(String terminalMessage,
-                     Predicate<String> checkLine,
-                     BiConsumer<String, SocketConnection> messageProcessor) {
+    private JmsServer(String terminalMessage,
+                      Predicate<String> checkLine,
+                      BiConsumer<String, SocketConnection> messageProcessor) {
         super(terminalMessage, checkLine, messageProcessor);
     }
 
     public static void startServer(Supplier<String> input) {
+        BiConsumer<String, SocketConnection> httpProcessor = ServerUtils.httpProcessor;
         JmsServer instance = new JmsServer(
                 ".",
                 s -> true,
@@ -44,6 +44,7 @@ public class JmsServer extends JmsBase {
     }
 
     public static void startServer() {
+        BiConsumer<String, SocketConnection> httpProcessor = ServerUtils.httpProcessor;
         JmsServer instance = new JmsServer(
                 ".",
                 s -> true,
@@ -56,53 +57,81 @@ public class JmsServer extends JmsBase {
     public void start() {
         List<SocketConnection> connections = new CopyOnWriteArrayList<>();
         try (ServerSocket server = new ServerSocket(port)) {
-            Runnable console = () -> {
+            executorService.submit(() -> {
                 String line = "";
                 while (!line.equals("stop")) {
                     System.out.println("type stop to terminate server" + this.terminalMessage);
                     line = this.input.get();
                 }
                 System.out.println("Terminate server");
-                try {
-                    for (SocketConnection connection : connections) {
-                        connection.close();
-                    }
-                    server.close();
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    System.exit(1);
-                }
-            };
-            executorService.submit(console);
+                terminate(connections, server);
+            });
             while (!server.isClosed()) {
                 SocketConnection connection;
                 try {
                     connection = new SocketConnection(server);
                     connections.add(connection);
                     System.out.println("connected");
-                    Runnable task = () -> {
+                    executorService.submit(() -> {
                         while (connection.isAlive()) {
                             readHttp(connection).forEach(req -> messageProcessor.accept(req, connection));
                         }
-                        System.out.println("disconnected");
                         connections.remove(connection);
-                    };
-//                    executorService.execute(task);
-                    new Thread(task).start();
+                    });
                 } catch (SocketClosedException e) {
-                    server.close();
-                    executorService.shutdown();
+                    terminate(connections, server);
                     break;
                 }
             }
-            executorService.shutdownNow();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    private void terminate(List<SocketConnection> connections, ServerSocket server) {
+        for (SocketConnection connection : connections) {
+            try {
+                connection.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+        try {
+            server.close();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        executorService.shutdown();
+        boolean terminated = false;
+        try {
+            terminated = executorService.awaitTermination(11, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (!terminated) {
+            executorService.shutdownNow();
+        }
+    }
+
     public static void main(String[] args) {
-        JmsServer.startServer();
+        if (args.length > 0) {
+            if (args[0].equals("-sq")) {
+                Subscriber.startSubscriber(true);
+            } else if (args[0].equals("-st")) {
+                Subscriber.startSubscriber(false);
+            } else if (args[0].equals("-pq")) {
+                Publisher.startPublisher(true);
+            } else if (args[0].equals("-pt")) {
+                Publisher.startPublisher(false);
+            } else {
+                System.out.println("-sq to start subscriber in queue mode\r\n" +
+                        "-st to start subscriber in topic mode\r\n" +
+                        "-pq to start publisher in queue mode\r\n" +
+                        "-pt to start publisher in topic mode\r\n" +
+                        "no args to start server");
+            }
+        } else
+            JmsServer.startServer();
     }
 }
 

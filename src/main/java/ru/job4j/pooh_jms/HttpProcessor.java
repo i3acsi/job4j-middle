@@ -5,7 +5,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 class HttpProcessor {
-    static final String LN = System.lineSeparator();
+    private static final String LN = System.lineSeparator();
     static final String MSG_DELIMITER = "##@@";
 
     static String postQueueRequest(String queue, String text, String hostUrl) {
@@ -65,7 +65,6 @@ class HttpProcessor {
         boolean result = httpRequest.startsWith("POST");
         if (!result) {
             if (!httpRequest.startsWith("GET")) {
-                System.out.println(httpRequest);
                 throw new RuntimeException("wrong http request!");
             }
         }
@@ -101,11 +100,11 @@ class HttpProcessor {
     }
 
     static String closeRequest(String name) {
-        return MSG_DELIMITER + "POST /exit\r\n" + "Host: " + name + MSG_DELIMITER;
+        return "POST /exit\r\n" + "Host: " + name;
     }
 
     static String addDelimiter(String message) {
-        return MSG_DELIMITER + message + MSG_DELIMITER;
+        return message + MSG_DELIMITER;
     }
 
     static String removeDelimiter(String message) {

@@ -60,7 +60,6 @@ public class SocketConnection implements AutoCloseable {
         return socket.getInetAddress().toString();
     }
 
-
     void writeLine(String line) {
         try {
             String msg = HttpProcessor.addDelimiter(line);
@@ -68,7 +67,6 @@ public class SocketConnection implements AutoCloseable {
             out.flush();
         } catch (IOException e) {
             this.alive = false;
-            e.printStackTrace();
         }
     }
 
@@ -99,6 +97,11 @@ public class SocketConnection implements AutoCloseable {
                     return "";
                 }
                 readBytes = in.read(data);
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    return "";
+                }
             } catch (SocketTimeoutException ex) {
                 try {
                     Thread.sleep(1000);

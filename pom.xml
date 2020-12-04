@@ -31,7 +31,7 @@
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>ru.job4j.pooh_jms.PoohJMS</mainClass>
+                                    <mainClass>ru.job4j.pooh_jms.JmsServer</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
