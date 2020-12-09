@@ -1,0 +1,4 @@
+{
+    "urlType": "TEST",
+    "videoUrl": "rtsp://TEST"
+}

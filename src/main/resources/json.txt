@@ -1,0 +1,22 @@
+[
+    {
+        "id": 1,
+        "sourceDataUrl": "src/main/resources/jsonDetails.txt",
+        "tokenDataUrl": "src/main/resources/jsonDetails.txt"
+    },
+    {
+        "id": 2,
+        "sourceDataUrl": "src/main/resources/jsonDetails.txt",
+        "tokenDataUrl": "src/main/resources/jsonDetails.txt"
+    },
+    {
+        "id": 3,
+        "sourceDataUrl": "src/main/resources/jsonDetails.txt",
+        "tokenDataUrl": "src/main/resources/jsonDetails.txt"
+    },
+    {
+        "id": 4,
+        "sourceDataUrl": "src/main/resources/jsonDetails.txt",
+        "tokenDataUrl": "src/main/resources/jsonDetails.txt"
+    }
+]
