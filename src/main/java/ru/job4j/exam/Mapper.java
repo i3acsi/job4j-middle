@@ -11,13 +11,13 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 class Mapper {
-    private static ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     static Function<String, Camera> mapCamera = (json) -> {
         json = "{ " + json + " }";
         Camera camera = null;
         try {
-            camera = objectMapper.readValue(json, Camera.class);
+            camera = OBJECT_MAPPER.readValue(json, Camera.class);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
