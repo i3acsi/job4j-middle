@@ -14,7 +14,6 @@ import static ru.job4j.exam.Mapper.readJsonFromAddress;
 public class Aggregator {
     private final ExecutorService executorService;
     private final Consumer<String> printJson;
-    private volatile boolean producerIsDone = false;
 
     Aggregator(Consumer<String> printJson) {
         this.executorService = Executors.newCachedThreadPool();
@@ -28,12 +27,11 @@ public class Aggregator {
         AtomicInteger counter = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
         try {
-            executorService.execute(() -> {
+            Future producer = executorService.submit(() -> {
                 readJsonFromAddress("http://www.mocky.io/v2/5c51b9dd3400003252129fb5", (json) -> {
                     cameras.put(mapCamera.apply(json));
                     counter.incrementAndGet();
                 });
-                producerIsDone = true;
             });
             executorService.execute(() -> {
                 do {
@@ -57,7 +55,7 @@ public class Aggregator {
                 do {
                     try {
                         String json = cameraDetails.take();
-                        if (counter.decrementAndGet() == 0 && producerIsDone) {
+                        if (counter.decrementAndGet() == 0 && producer.isDone()) {
                             printJson.accept(json);
                             break;
                         } else {
