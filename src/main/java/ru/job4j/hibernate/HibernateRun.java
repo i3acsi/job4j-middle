@@ -1,18 +1,11 @@
 package ru.job4j.hibernate;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 
-import javax.persistence.*;
-import java.time.LocalDateTime;
 import java.util.List;
 
 public class HibernateRun {
@@ -83,34 +76,5 @@ public class HibernateRun {
         session.getTransaction().commit();
         session.close();
         return result;
-    }
-}
-
-@Entity
-@Table(name = "trackitem")
-@Data
-@NoArgsConstructor
-@EqualsAndHashCode
-@ToString
-class Item {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
-    private Integer id;
-    @EqualsAndHashCode.Include
-    private String task;
-    private String description;
-
-    @CreationTimestamp
-    @Column(name = "date_creation")
-    private LocalDateTime dateCreation;
-
-    private String comment;
-
-    public Item (String task, String description) {
-        this.task = task;
-        this.description = description;
-        this.dateCreation = LocalDateTime.now();
-        this.comment = "";
     }
 }

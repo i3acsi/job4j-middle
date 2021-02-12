@@ -19,6 +19,7 @@
 
         <mapping class="ru.job4j.hibernate.Item" />
         <mapping class="ru.job4j.hibernate.Car"/>
+
     </session-factory>
 
 </hibernate-configuration>
