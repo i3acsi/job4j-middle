@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS cars
+(
+    id   SERIAL PRIMARY KEY,
+    model VARCHAR(255) NOT NULL,
+    created TIMESTAMP
+);
