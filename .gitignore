@@ -23,6 +23,8 @@
 hs_err_pid*
 
 target
+classes
+out
 
 .idea
 *.iml

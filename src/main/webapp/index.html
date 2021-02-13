@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Items</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+</head>
+<body>
+<div class="container pt-3">
+    <div class="row">
+        <form>
+            <div class="form-group">
+                <label for="desc">description</label>
+                <input type="text" class="form-control" placeholder="description" id="desc" required>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="addItem()">Add Item</button>
+        </form>
+    </div>
+    <div class="row">
+            <label for="check">NOT DONE / ALL </label>
+            <input type="checkbox" class="form-check-input lg" checked="checked" id="check" onclick="updateTable()">
+    </div>
+
+    <div class="row">
+        <table class="table table-boarded">
+            <lable for="thead">List of Items</lable>
+            <thead class="thead-dark" id="thead">
+            <tr>
+                <th>ID</th>
+                <th>Description</th>
+                <th>Created</th>
+                <th>Done</th>
+            </tr>
+            </thead>
+            <tbody id="table">
+
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function addItem() {
+        let desc = document.getElementById("desc")
+        if (desc.value.length > 0) {
+            $.post({
+                url: location.origin + '/myitems/process',
+                data: {
+                    "action": 'addItem',
+                    "desc": desc.value
+                },
+                data_type: "json"
+            }).done(function () {
+                updateTable()
+            })
+        }
+    }
+
+    function markDone(id) {
+        let desc = document.getElementById("desc")
+        $.post({
+            url: location.origin + '/myitems/process',
+            data: {
+                "action": 'markDone',
+                "id": id
+            },
+            data_type: "json"
+        }).done(function () {
+            updateTable()
+        })
+
+    }
+
+    function updateTable() {
+        let checked = document.getElementById("check").checked
+        $.get({
+            url: location.origin + '/myitems/process',
+            data: {
+                "check": checked
+            },
+            data_type: "json"
+        }).done(function (json) {
+            console.log(json)
+            let items = ''
+            for (var k in json) {
+                let id = parseInt(json[k]['id'])
+                let done = json[k]['done']
+                let bt = '<button type="button" class="btn btn-primary btn-block" onclick="markDone(' + id + ')">make done</button>'
+
+                if (done) {
+                    bt = '<button type="button" class="btn btn-primary btn-block" disabled>is done</button>'
+                }
+                items += '<tr>\n' +
+                    '                <th>' + id + '</th>\n' +
+                    '                <th>' + json[k]['description'] + '</th>\n' +
+                    '                <th>' + json[k]['created'] + '</th>\n' +
+                    '                <th>' + bt + '</th>\n' +
+                    '            </tr>'
+            }
+            $('#table').html(items);
+            $('#desc').text('')
+        })
+    }
+
+    $(document).ready(function () {
+        updateTable()
+    })
+</script>
+</body>
+</html>
