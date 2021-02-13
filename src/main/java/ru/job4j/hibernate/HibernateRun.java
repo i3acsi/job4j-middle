@@ -26,7 +26,7 @@ public class HibernateRun {
             for (Item it : list) {
                 System.out.println(it);
             }
-        }  catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         } finally {
             StandardServiceRegistryBuilder.destroy(registry);
@@ -34,47 +34,49 @@ public class HibernateRun {
     }
 
     public static Item create(Item item, SessionFactory sf) {
-        Session session = sf.openSession();
-        session.beginTransaction();
-        session.save(item);
-        session.getTransaction().commit();
-        session.close();
+        try (Session session = sf.openSession()) {
+            session.beginTransaction();
+            session.save(item);
+            session.getTransaction().commit();
+        }
         return item;
     }
 
     public static void update(Item item, SessionFactory sf) {
-        Session session = sf.openSession();
-        session.beginTransaction();
-        session.update(item);
-        session.getTransaction().commit();
-        session.close();
+        try (Session session = sf.openSession()) {
+            session.beginTransaction();
+            session.update(item);
+            session.getTransaction().commit();
+        }
     }
 
     public static void delete(Integer id, SessionFactory sf) {
-        Session session = sf.openSession();
-        session.beginTransaction();
-        Item item = new Item();
-        item.setId(id);
-        session.delete(item);
-        session.getTransaction().commit();
-        session.close();
+        try (Session session = sf.openSession()) {
+            session.beginTransaction();
+            Item item = new Item();
+            item.setId(id);
+            session.delete(item);
+            session.getTransaction().commit();
+        }
     }
 
     public static List<Item> findAll(SessionFactory sf) {
-        Session session = sf.openSession();
-        session.beginTransaction();
-        List result = session.createQuery("from ru.job4j.hibernate.Item").list();
-        session.getTransaction().commit();
-        session.close();
+        List result = null;
+        try (Session session = sf.openSession()) {
+            session.beginTransaction();
+            result = session.createQuery("from ru.job4j.hibernate.Item").list();
+            session.getTransaction().commit();
+        }
         return result;
     }
 
     public static Item findById(Integer id, SessionFactory sf) {
-        Session session = sf.openSession();
-        session.beginTransaction();
-        Item result = session.get(Item.class, id);
-        session.getTransaction().commit();
-        session.close();
+        Item result = null;
+        try (Session session = sf.openSession()) {
+            session.beginTransaction();
+            result = session.get(Item.class, id);
+            session.getTransaction().commit();
+        }
         return result;
     }
 }

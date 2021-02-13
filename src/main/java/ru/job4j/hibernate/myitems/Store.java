@@ -16,24 +16,24 @@ public class Store {
             .buildMetadata().buildSessionFactory();
 
     public List<MyItem> findAll(boolean isDone) {
-        Session session = sf.openSession();
         List<MyItem> result = null;
-        if (!isDone) {
-            result = session.createQuery("FROM " + MyItem.class.getSimpleName()).getResultList();
-        } else {
-            result = session.createQuery("FROM " + MyItem.class.getSimpleName() + " WHERE done = false ").getResultList();
+        try (Session session = sf.openSession()) {
+            if (!isDone) {
+                result = session.createQuery("FROM " + MyItem.class.getSimpleName()).getResultList();
+            } else {
+                result = session.createQuery("FROM " + MyItem.class.getSimpleName() + " WHERE done = false ").getResultList();
+            }
         }
-        session.close();
         return result;
     }
 
     public boolean add(MyItem item) {
-        Session session = sf.openSession();
-        System.out.println(item);
-        int id = (int) session.save(item);
-        System.out.println(id);
-        session.close();
-        return id > 0;
+        boolean res = false;
+        try (Session session = sf.openSession()) {
+            int id = (int) session.save(item);
+            res = id > 0;
+        }
+        return res;
     }
 
     public boolean makeDone(int id) {

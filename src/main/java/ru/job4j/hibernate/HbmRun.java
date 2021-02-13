@@ -1,6 +1,5 @@
 package ru.job4j.hibernate;
 
-import com.sun.istack.Nullable;
 import lombok.Data;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -21,14 +20,16 @@ public class HbmRun {
             SessionFactory sf = new MetadataSources(registry)
                     .buildMetadata()
                     .buildSessionFactory();
-            Session session = sf.openSession();
-            session.beginTransaction();
-
-            Car car = Car.of("ZIL", Timestamp.valueOf(LocalDateTime.now()), "Sidorov Ivan", 150, 12);
-            session.save(car);
-
-            session.getTransaction().commit();
-            session.close();
+            try (Session session = sf.openSession()) {
+                session.beginTransaction();
+                Car car = Car.of("ZIL",
+                        Timestamp.valueOf(LocalDateTime.now()),
+                        "Sidorov Ivan",
+                        150,
+                        12);
+                session.save(car);
+                session.getTransaction().commit();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -54,7 +55,6 @@ class Car {
 
     private int power;
 
-    @Nullable
     private Integer serial;
 
     public static Car of(String model, Timestamp created, String owner, int power, int serial) {
