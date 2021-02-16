@@ -19,7 +19,9 @@
 
         <mapping class="ru.job4j.hibernate.Item" />
         <mapping class="ru.job4j.hibernate.Car"/>
-        <mapping class="ru.job4j.hibernate.myitems.MyItem"/>
+        <mapping class="ru.job4j.hibernate.myitems.model.MyItem"/>
+        <mapping class="ru.job4j.hibernate.myitems.model.Role"/>
+        <mapping class="ru.job4j.hibernate.myitems.model.User"/>
 
 
     </session-factory>

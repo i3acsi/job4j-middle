@@ -1,4 +1,4 @@
-package ru.job4j.hibernate.myitems;
+package ru.job4j.hibernate.myitems.model;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -32,10 +32,16 @@ public class MyItem {
 
     private Boolean done;
 
-    public MyItem(String description) {
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false, updatable = false)
+    @JsonSerialize(using = CustomUserSerializer.class)
+    private User author;
+
+    public MyItem(String description, User author) {
         this.description = description;
         this.created = LocalDateTime.now();
         this.done = false;
+        this.author = author;
     }
 
     static class CustomDateSerializer extends StdSerializer<LocalDateTime> {
@@ -55,6 +61,23 @@ public class MyItem {
                               JsonGenerator jsonGenerator,
                               SerializerProvider serializerProvider) throws IOException {
             jsonGenerator.writeString(localDateTime.format(formatter));
+        }
+    }
+
+    static class CustomUserSerializer extends StdSerializer<User> {
+        public CustomUserSerializer() {
+            this(null);
+        }
+
+        public CustomUserSerializer(Class t) {
+            super(t);
+        }
+
+        @Override
+        public void serialize(User user,
+                              JsonGenerator jsonGenerator,
+                              SerializerProvider serializerProvider) throws IOException {
+            jsonGenerator.writeString(user.getName());
         }
     }
 }

@@ -1,6 +1,7 @@
-package ru.job4j.hibernate.myitems;
+package ru.job4j.hibernate.myitems.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ru.job4j.hibernate.myitems.service.Store;
 
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;

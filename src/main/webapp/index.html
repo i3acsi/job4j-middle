@@ -11,32 +11,30 @@
 <body>
 <div class="container pt-3">
     <div class="row">
-        <form>
-            <div class="form-group">
-                <label for="desc">description</label>
-                <input type="text" class="form-control" placeholder="description" id="desc" required>
-            </div>
-            <button type="button" class="btn btn-primary" onclick="addItem()">Add Item</button>
-        </form>
+        <div class="col">
+            <form>
+                <div class="form-group">
+                    <label for="desc">Enter new task description</label>
+                    <input type="text" class="form-control" id="desc" required>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="addItem()">Add Item</button>
+            </form>
+        </div>
+        <div class="col" align="right">
+            <button type="button" class="btn btn-primary lg" onclick="exit()">Log out</button>
+        </div>
     </div>
     <div class="row">
-            <label for="check">NOT DONE / ALL </label>
-            <input type="checkbox" class="form-check-input lg" checked="checked" id="check" onclick="updateTable()">
+        <label for="check">NOT DONE / ALL </label>
+        <input type="checkbox" class="form-check-input lg" checked="checked" id="check" onclick="updateTable()">
     </div>
 
     <div class="row">
         <table class="table table-boarded">
             <lable for="thead">List of Items</lable>
             <thead class="thead-dark" id="thead">
-            <tr>
-                <th>ID</th>
-                <th>Description</th>
-                <th>Created</th>
-                <th>Done</th>
-            </tr>
             </thead>
             <tbody id="table">
-
             </tbody>
         </table>
     </div>
@@ -60,7 +58,6 @@
     }
 
     function markDone(id) {
-        let desc = document.getElementById("desc")
         $.post({
             url: location.origin + '/myitems/process',
             data: {
@@ -71,7 +68,6 @@
         }).done(function () {
             updateTable()
         })
-
     }
 
     function updateTable() {
@@ -85,6 +81,11 @@
         }).done(function (json) {
             console.log(json)
             let items = ''
+            let fields = '<tr align="center">\n'
+            for (var i in json[0]) {
+                fields += '<th>' + i + '</th>\n'
+            }
+            fields += '</tr>'
             for (var k in json) {
                 let id = parseInt(json[k]['id'])
                 let done = json[k]['done']
@@ -93,16 +94,31 @@
                 if (done) {
                     bt = '<button type="button" class="btn btn-primary btn-block" disabled>is done</button>'
                 }
-                items += '<tr>\n' +
+                items += '<tr align="center">\n' +
                     '                <th>' + id + '</th>\n' +
                     '                <th>' + json[k]['description'] + '</th>\n' +
                     '                <th>' + json[k]['created'] + '</th>\n' +
                     '                <th>' + bt + '</th>\n' +
+                    '                <th>' + json[k]['author'] + '</th>\n' +
                     '            </tr>'
             }
+            $('#thead').html(fields);
             $('#table').html(items);
             $('#desc').text('')
-        })
+        }).fail(function () {
+            document.location.href = location.origin + '/myitems'
+        });
+    }
+
+    function exit() {
+        $.get({
+            url: location.origin + '/myitems/auth'
+        }).done(function () {
+            document.location.href = location.origin + '/myitems'
+        }).fail(function () {
+            document.location.href = location.origin + '/myitems'
+        });
+
     }
 
     $(document).ready(function () {

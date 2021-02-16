@@ -9,17 +9,7 @@
 
     <display-name>Job4j MyItems</display-name>
 
-    <servlet-mapping>
-        <servlet-name>ItemsServlet</servlet-name>
-        <url-pattern>/process</url-pattern>
-
-    </servlet-mapping>
-    <servlet>
-        <servlet-name>ItemsServlet</servlet-name>
-        <servlet-class>ru.job4j.hibernate.myitems.ItemsServlet</servlet-class>
-    </servlet>
-
     <welcome-file-list>
-        <welcome-file>index.html</welcome-file>
+        <welcome-file>Greeting.html</welcome-file>
     </welcome-file-list>
 </web-app>
