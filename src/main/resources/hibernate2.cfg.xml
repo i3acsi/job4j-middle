@@ -19,6 +19,10 @@
 
         <mapping class="ru.job4j.hibernate.auto.model.Model" />
         <mapping class="ru.job4j.hibernate.auto.model.Mark" />
+        <mapping class="ru.job4j.hibernate.manytomany.Book" />
+        <mapping class="ru.job4j.hibernate.manytomany.Author" />
+
+
     </session-factory>
 
 </hibernate-configuration>
