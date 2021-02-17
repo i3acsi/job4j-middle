@@ -12,18 +12,29 @@
 <div class="container pt-3">
     <div class="row">
         <div class="col">
-            <form>
-                <div class="form-group">
-                    <label for="desc">Enter new task description</label>
-                    <input type="text" class="form-control" id="desc" required>
-                </div>
-                <button type="button" class="btn btn-primary" onclick="addItem()">Add Item</button>
-            </form>
+            <div class="form-group row">
+                <label for="desc">Enter new task description</label>
+                <input type="text" class="form-control" id="desc" required>
+            </div>
+            <div class="form-group row">
+                <label for="cats">Список категорий</label>
+                <select class="form-control" id="cats" multiple required>
+                </select>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="addItem()">Add Item</button>
+        </div>
+        <div class="col px-md-5">
+            <div class="form-group row">
+                <label for="newCat">Enter new category</label>
+                <input type="text" class="form-control" id="newCat">
+            </div>
+            <button type="button" class="btn btn-primary" onclick="addCategory()">Add New Category</button>
         </div>
         <div class="col" align="right">
             <button type="button" class="btn btn-primary lg" onclick="exit()">Log out</button>
         </div>
     </div>
+
     <div class="row">
         <label for="check">NOT DONE / ALL </label>
         <input type="checkbox" class="form-check-input lg" checked="checked" id="check" onclick="updateTable()">
@@ -41,14 +52,33 @@
 </div>
 
 <script>
+    function addCategory() {
+        let category = document.getElementById("newCat")
+        if (category.value.length > 0) {
+            $.post({
+                url: location.origin + '/myitems/cat',
+                data: {
+                    "categoryName": category.value
+                },
+                data_type: "json"
+            }).done(function () {
+                category.value = "";
+                updateCats()
+            })
+        }
+    }
+
     function addItem() {
         let desc = document.getElementById("desc")
-        if (desc.value.length > 0) {
+        let categories = JSON.stringify(selectedCats())
+        console.log(categories)
+        if (desc.value.length > 0 && categories.length > 0) {
             $.post({
                 url: location.origin + '/myitems/process',
                 data: {
                     "action": 'addItem',
-                    "desc": desc.value
+                    "desc": desc.value,
+                    "categories": categories
                 },
                 data_type: "json"
             }).done(function () {
@@ -70,6 +100,20 @@
         })
     }
 
+    function updateCats() {
+        $.get({
+            url: location.origin + '/myitems/cat'
+        }).done(function (json) {
+            let cats = ''
+            for (var k in json) {
+                let id = json[k]['id']
+                let cat = json[k]['name']
+                cats += '<option value=' + id + '>' + cat + '</option>\n'
+            }
+            $('#cats').html(cats);
+        })
+    }
+
     function updateTable() {
         let checked = document.getElementById("check").checked
         $.get({
@@ -79,7 +123,7 @@
             },
             data_type: "json"
         }).done(function (json) {
-            console.log(json)
+            updateCats()
             let items = ''
             let fields = '<tr align="center">\n'
             for (var i in json[0]) {
@@ -100,6 +144,7 @@
                     '                <th>' + json[k]['created'] + '</th>\n' +
                     '                <th>' + bt + '</th>\n' +
                     '                <th>' + json[k]['author'] + '</th>\n' +
+                    '                <th>' + json[k]['categories'] + '</th>\n' +
                     '            </tr>'
             }
             $('#thead').html(fields);
@@ -124,6 +169,21 @@
     $(document).ready(function () {
         updateTable()
     })
+
+    let selectedCats = function () {
+        var select = document.getElementById('cats')
+        var result = [];
+        var options = select && select.options;
+        var opt;
+        for (var i = 0, iLen = options.length; i < iLen; i++) {
+            opt = options[i];
+
+            if (opt.selected) {
+                result.push(opt.value || opt.text);
+            }
+        }
+        return result
+    }
 </script>
 </body>
 </html>

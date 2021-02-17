@@ -7,6 +7,7 @@ import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.query.Query;
+import ru.job4j.hibernate.myitems.model.Category;
 import ru.job4j.hibernate.myitems.model.MyItem;
 import ru.job4j.hibernate.myitems.model.Role;
 import ru.job4j.hibernate.myitems.model.User;
@@ -43,7 +44,7 @@ public class Store {
         return tx(session -> {
             Query query = session.createQuery("FROM " + User.class.getSimpleName() + " WHERE email=:email");
             query.setParameter("email", email);
-            return  (User) query.uniqueResult();
+            return (User) query.uniqueResult();
         });
     }
 
@@ -51,9 +52,9 @@ public class Store {
     public List<MyItem> findAll(boolean isDone) {
         return tx(session -> {
             if (!isDone) {
-                return session.createQuery("FROM " + MyItem.class.getSimpleName() + " i ORDER BY i.id ASC").getResultList();
+                return session.createQuery("SELECT DISTINCT i FROM MyItem i JOIN FETCH i.categories ORDER BY i.id").getResultList();
             } else {
-                return session.createQuery("FROM " + MyItem.class.getSimpleName() + " i  WHERE done = false ORDER BY i.id ASC").getResultList();
+                return session.createQuery("SELECT DISTINCT i FROM MyItem i JOIN FETCH i.categories WHERE i.done = false ORDER BY i.id").getResultList();
             }
         });
     }
@@ -68,6 +69,24 @@ public class Store {
             query.setParameter("paramId", id);
             return query.executeUpdate() > 0;
         });
+    }
+
+    public List<Category> findAllCategories() {
+        return findAll(Category.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Category> findSelectedCategories(String ids) {
+        String cats = ids.replaceAll("\\[", "(").replaceAll("\\]", ")").replaceAll("\"", "");
+        return tx(session -> session.createQuery("from " + Category.class.getSimpleName() + " where cat_id in " + cats).list());
+    }
+
+    public void add(Category newCat) {
+        create(newCat);
+    }
+
+    private <T> List<T> findAll(Class<T> cl) {
+        return tx(session -> session.createQuery("from " + cl.getName(), cl).list());
     }
 
     private <T> T tx(final Function<Session, T> command) {

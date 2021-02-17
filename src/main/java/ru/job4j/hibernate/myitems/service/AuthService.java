@@ -37,7 +37,6 @@ public class AuthService {
         String encodedPwd = encodePassword(password);
         Role roleUser = Role.of("USER");
         User user = store.save(User.of(name, email, encodedPwd, roleUser));
-        System.out.println(user);
         return user.getId() > 0;
     }
 }

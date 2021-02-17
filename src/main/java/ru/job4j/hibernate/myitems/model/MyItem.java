@@ -12,6 +12,9 @@ import javax.persistence.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringJoiner;
 
 @Entity
 @Table(name = "myitem")
@@ -37,11 +40,32 @@ public class MyItem {
     @JsonSerialize(using = CustomUserSerializer.class)
     private User author;
 
-    public MyItem(String description, User author) {
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JsonSerialize(using = CustomCategoriesSerializer.class)
+    private List<Category> categories = new ArrayList<>();
+
+    public void addCategory(Category category) {
+        this.categories.add(category);
+    }
+
+    public MyItem(String description, User author, List<Category> categories) {
         this.description = description;
         this.created = LocalDateTime.now();
         this.done = false;
         this.author = author;
+        this.categories = categories;
+    }
+
+    @Override
+    public String toString() {
+        return "MyItem{" +
+                "id=" + id +
+                ", description='" + description + '\'' +
+                ", created=" + created +
+                ", done=" + done +
+                ", author=" + author +
+                ", categories=" + MyItem.categoriesListToString(categories) +
+                '}';
     }
 
     static class CustomDateSerializer extends StdSerializer<LocalDateTime> {
@@ -79,5 +103,28 @@ public class MyItem {
                               SerializerProvider serializerProvider) throws IOException {
             jsonGenerator.writeString(user.getName());
         }
+    }
+
+    static class CustomCategoriesSerializer extends StdSerializer<List<Category>> {
+        public CustomCategoriesSerializer() {
+            this(null);
+        }
+
+        public CustomCategoriesSerializer(Class t) {
+            super(t);
+        }
+
+        @Override
+        public void serialize(List<Category> categories,
+                              JsonGenerator jsonGenerator,
+                              SerializerProvider serializerProvider) throws IOException {
+            jsonGenerator.writeString(MyItem.categoriesListToString(categories));
+        }
+    }
+
+    private static String categoriesListToString(List<Category> categories){
+        StringJoiner joiner = new StringJoiner(",\n");
+        categories.forEach(category -> joiner.add(category.getName()));
+         return joiner.toString();
     }
 }

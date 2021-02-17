@@ -30,7 +30,6 @@ public class AuthServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        System.out.println("!!!!");
         String action = req.getParameter("action");
         if ("login".equals(action)) {
             String email = req.getParameter("email");
@@ -52,7 +51,6 @@ public class AuthServlet extends HttpServlet {
                 resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
             } else {
                 resp.setStatus(HttpServletResponse.SC_OK);
-                System.out.println("OK");
             }
         }
     }

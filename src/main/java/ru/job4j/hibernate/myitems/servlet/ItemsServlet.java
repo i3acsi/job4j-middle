@@ -1,6 +1,7 @@
 package ru.job4j.hibernate.myitems.servlet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ru.job4j.hibernate.myitems.model.Category;
 import ru.job4j.hibernate.myitems.model.MyItem;
 import ru.job4j.hibernate.myitems.model.User;
 import ru.job4j.hibernate.myitems.service.Store;
@@ -49,7 +50,9 @@ public class ItemsServlet extends HttpServlet {
             String action = req.getParameter("action");
             if ("addItem".equals(action)) {
                 String desc = req.getParameter("desc");
-                store.add(new MyItem(desc, author));
+                String cats = req.getParameter("categories");
+                List<Category> categories = store.findSelectedCategories(cats);
+                store.add(new MyItem(desc, author, categories));
             } else if ("markDone".equals(action)) {
                 int id = Integer.parseInt(req.getParameter("id"));
                 store.makeDone(id);

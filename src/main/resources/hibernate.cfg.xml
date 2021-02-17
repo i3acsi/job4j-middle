@@ -22,6 +22,8 @@
         <mapping class="ru.job4j.hibernate.myitems.model.MyItem"/>
         <mapping class="ru.job4j.hibernate.myitems.model.Role"/>
         <mapping class="ru.job4j.hibernate.myitems.model.User"/>
+        <mapping class="ru.job4j.hibernate.myitems.model.Category"/>
+
 
 
     </session-factory>
