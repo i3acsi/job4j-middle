@@ -83,6 +83,7 @@
                 data_type: "json"
             }).done(function () {
                 updateTable()
+                desc.value = "";
             })
         }
     }
@@ -142,6 +143,7 @@
                     '                <th>' + id + '</th>\n' +
                     '                <th>' + json[k]['description'] + '</th>\n' +
                     '                <th>' + json[k]['created'] + '</th>\n' +
+                    '                <th>' + json[k]['updated'] + '</th>\n' +
                     '                <th>' + bt + '</th>\n' +
                     '                <th>' + json[k]['author'] + '</th>\n' +
                     '                <th>' + json[k]['categories'] + '</th>\n' +

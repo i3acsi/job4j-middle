@@ -1,6 +1,9 @@
 package ru.job4j.hibernate.myitems.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
@@ -13,6 +16,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.StringJoiner;
 
@@ -33,6 +37,10 @@ public class MyItem {
     @JsonSerialize(using = CustomDateSerializer.class)
     private LocalDateTime created;
 
+    @Temporal(TemporalType.TIMESTAMP)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "YYYY-MM-dd HH:mm:ss", timezone = "Asia/Novosibirsk")
+    private Date updated;
+
     private Boolean done;
 
     @ManyToOne
@@ -51,6 +59,7 @@ public class MyItem {
     public MyItem(String description, User author, List<Category> categories) {
         this.description = description;
         this.created = LocalDateTime.now();
+        this.updated = new Date(System.currentTimeMillis());
         this.done = false;
         this.author = author;
         this.categories = categories;
@@ -126,5 +135,16 @@ public class MyItem {
         StringJoiner joiner = new StringJoiner(",\n");
         categories.forEach(category -> joiner.add(category.getName()));
          return joiner.toString();
+    }
+
+    public static void main(String[] args) throws JsonProcessingException {
+        MyItem item = new MyItem(
+                "String description",
+                User.of("userName", "userEmail", "userPWd", Role.of("userRole")),
+                List.of(Category.of("userCategory")));
+        ObjectMapper mapper = new ObjectMapper();
+        String json = mapper.writeValueAsString(item);
+        System.out.println(json);
+
     }
 }

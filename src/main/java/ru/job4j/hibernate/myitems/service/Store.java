@@ -12,6 +12,7 @@ import ru.job4j.hibernate.myitems.model.MyItem;
 import ru.job4j.hibernate.myitems.model.Role;
 import ru.job4j.hibernate.myitems.model.User;
 
+import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
 
@@ -64,10 +65,16 @@ public class Store {
     }
 
     public boolean makeDone(int id) {
+//        Date now = new Date(System.currentTimeMillis());
         return tx(session -> {
-            Query query = session.createQuery("UPDATE " + MyItem.class.getSimpleName() + " SET done = true WHERE id = :paramId");
-            query.setParameter("paramId", id);
-            return query.executeUpdate() > 0;
+            MyItem item = session.get(MyItem.class, id);
+            item.setDone(true);
+            item.setUpdated(new Date(System.currentTimeMillis()));
+            session.update(item);
+            return true;
+//            Query query = session.createQuery("UPDATE " + MyItem.class.getSimpleName() + " SET done = true WHERE id = :paramId");
+//            query.setParameter("paramId", id);
+//            return query.executeUpdate() > 0;
         });
     }
 
