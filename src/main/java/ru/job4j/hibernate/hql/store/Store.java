@@ -13,7 +13,7 @@ import java.util.function.Function;
 
 public class Store {
     final StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
-            .configure("hibernate2.cfg.xml").build();
+            .configure("hibernateHQL.cfg.xml").build();
     private final SessionFactory sf = new MetadataSources(registry)
             .buildMetadata().buildSessionFactory();
 

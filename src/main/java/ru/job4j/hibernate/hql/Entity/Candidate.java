@@ -9,7 +9,7 @@ import javax.persistence.*;
         uniqueConstraints = {@UniqueConstraint(columnNames = {"id", "name"})})
 @RequiredArgsConstructor(staticName = "of")
 @NoArgsConstructor
-@ToString(of = {"id", "name", "experience", "salary"})
+@ToString(of = {"id", "name", "experience", "salary", "vacancyBase"})
 @Data
 public class Candidate {
     @Id
@@ -24,4 +24,7 @@ public class Candidate {
     @NonNull
     private Long salary;
 
+    @NonNull
+    @OneToOne(fetch = FetchType.LAZY)
+    private VacancyBase vacancyBase;
 }
