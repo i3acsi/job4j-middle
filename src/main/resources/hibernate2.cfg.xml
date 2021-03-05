@@ -14,14 +14,14 @@
         <property name="show_sql">true</property>
         <property name="format_sql">true</property>
         <property name="use_sql_comments">true</property>
-        <property name="hibernate.show_sql">true</property>
+        <property name="hibernate.show_sql">false</property>
         <property name="hibernate.dialect">org.hibernate.dialect.PostgreSQL10Dialect</property>
 
         <mapping class="ru.job4j.hibernate.auto.model.Model" />
         <mapping class="ru.job4j.hibernate.auto.model.Mark" />
         <mapping class="ru.job4j.hibernate.manytomany.Book" />
         <mapping class="ru.job4j.hibernate.manytomany.Author" />
-
+        <mapping class="ru.job4j.hibernate.hql.entity.Candidate" />
 
     </session-factory>
 
