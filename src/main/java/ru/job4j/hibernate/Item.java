@@ -27,6 +27,7 @@ public class Item {
     private String description;
 
     @CreationTimestamp
+    @EqualsAndHashCode.Exclude
     @Column(name = "date_creation")
     private LocalDateTime dateCreation;
 
