@@ -1,7 +1,10 @@
 package ru.job4j.hibernate.tracker;
 
+import org.springframework.stereotype.Component;
+
 import java.util.function.Consumer;
 
+@Component
 public class StartUI {
     /**
      * Получение данных от пользователя.

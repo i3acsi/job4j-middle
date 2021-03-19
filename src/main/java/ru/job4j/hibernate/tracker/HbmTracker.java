@@ -6,11 +6,13 @@ import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.query.Query;
+import org.springframework.stereotype.Component;
 import ru.job4j.hibernate.Item;
 
 import java.util.List;
 import java.util.function.Consumer;
 
+@Component
 public class HbmTracker implements ITracker, AutoCloseable {
     private final StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
             .configure().build();
