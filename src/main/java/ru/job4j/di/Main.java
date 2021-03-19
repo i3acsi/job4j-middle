@@ -13,5 +13,13 @@ public class Main {
         ui.add("Ivan ivanov");
         ui.print();
 
+        StartUI ui2 = context.getBean(StartUI.class);
+
+        ui2.print();
+        ui2.add("Petr ivanov");
+        ui2.add("Ivan Arsentev");
+        ui2.print();
+        ui.print();
+
     }
 }
