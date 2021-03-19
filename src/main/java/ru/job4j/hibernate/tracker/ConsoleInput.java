@@ -2,7 +2,7 @@ package ru.job4j.hibernate.tracker;
 
 import java.util.Scanner;
 
-class ConsoleInput implements Input {
+public class ConsoleInput implements Input {
     private Scanner scanner = new Scanner(System.in);
 
     private boolean exist(int key, int[] range) {
