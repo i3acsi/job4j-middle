@@ -40,33 +40,23 @@ package ru.job4j.leetcode.problems.medium;
  **/
 public class AddTwoNumbers {
     ListNode addTwoNumbers(ListNode l1, ListNode l2) {
-        ListNode result = null;
-        ListNode tail = null;
-        int overSum = 0;
-        while (l1 != null || l2 != null) {
-            if (result == null) {
-                result = new ListNode();
-                tail = result;
-            } else {
-                tail.next = new ListNode();
-                tail = tail.next;
-            }
-            int sum = l1 == null ? l2.val + overSum
-                    : l2 == null ? l1.val + overSum
-                    : l1.val + l2.val + overSum;
-            overSum = 0;
-            if (sum >= 10) {
-                sum -= 10;
-                overSum = 1;
-            }
-            tail.val = sum;
-            l1 = l1 == null ? null : l1.next;
-            l2 = l2 == null ? null : l2.next;
+        ListNode dummyHead = new ListNode(0);
+        ListNode p = l1, q = l2, curr = dummyHead;
+        int carry = 0;
+        while (p != null || q != null) {
+            int x = (p != null) ? p.val : 0;
+            int y = (q != null) ? q.val : 0;
+            int sum = carry + x + y;
+            carry = sum / 10;
+            curr.next = new ListNode(sum % 10);
+            curr = curr.next;
+            if (p != null) p = p.next;
+            if (q != null) q = q.next;
         }
-        if (overSum == 1)
-            tail.next = new ListNode(1);
-
-        return result;
+        if (carry > 0) {
+            curr.next = new ListNode(carry);
+        }
+        return dummyHead.next;
     }
 
     public static void main(String[] args) {
