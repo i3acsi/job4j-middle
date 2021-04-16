@@ -40,24 +40,31 @@ package ru.job4j.leetcode.problems.medium;
  **/
 public class AddTwoNumbers {
     ListNode addTwoNumbers(ListNode l1, ListNode l2) {
-        ListNode result = new ListNode();
-        ListNode tail = result;
+        ListNode result = null;
+        ListNode tail = null;
         int overSum = 0;
-        while (l1 != null && l2 != null) {
-            int sum = l1.val + l2.val + overSum;
+        while (l1 != null || l2 != null) {
+            if (result == null) {
+                result = new ListNode();
+                tail = result;
+            } else {
+                tail.next = new ListNode();
+                tail = tail.next;
+            }
+            int sum = l1 == null ? l2.val + overSum
+                    : l2 == null ? l1.val + overSum
+                    : l1.val + l2.val + overSum;
             overSum = 0;
             if (sum >= 10) {
                 sum -= 10;
                 overSum = 1;
             }
             tail.val = sum;
-            tail.next = new ListNode();
-            tail = tail.next;
-//            tail = new ListNode(sum);
-//            tail = tail.next;
-            l1 = l1.next;
-            l2 = l2.next;
+            l1 = l1 == null ? null : l1.next;
+            l2 = l2 == null ? null : l2.next;
         }
+        if (overSum == 1)
+            tail.next = new ListNode(1);
 
         return result;
     }
@@ -69,8 +76,30 @@ public class AddTwoNumbers {
 
         ListNode result = addTwoNumbers.addTwoNumbers(input1, input2);
         System.out.println("expected: 708");
-        System.out.print  ("  result: ");
-        while (result!=null){
+        System.out.print("  result: ");
+        while (result != null) {
+            System.out.print(result.val);
+            result = result.next;
+        }
+
+        System.out.println();
+        input1 = new ListNode();
+        input2 = new ListNode();
+        result = addTwoNumbers.addTwoNumbers(input1, input2);
+        System.out.println("expected: 0");
+        System.out.print("  result: ");
+        while (result != null) {
+            System.out.print(result.val);
+            result = result.next;
+        }
+
+        System.out.println();
+        input1 = new ListNode(9, new ListNode(9, new ListNode(9, new ListNode(9, new ListNode(9, new ListNode(9, new ListNode(9)))))));
+        input2 = new ListNode(9, new ListNode(9, new ListNode(9, new ListNode(9))));
+        result = addTwoNumbers.addTwoNumbers(input1, input2);
+        System.out.println("expected: 89990001");
+        System.out.print("  result: ");
+        while (result != null) {
             System.out.print(result.val);
             result = result.next;
         }
